@@ -1,6 +1,0 @@
-This Stability AI Model is licensed under the Stability AI Community License, Copyright © Stability AI Ltd. All Rights Reserved.
-Powered by Stability AI.
-
-AutoSculpt Studio uses Stable Fast 3D (https://huggingface.co/stabilityai/stable-fast-3d) without changing the model: the weights are
-downloaded by each user from Hugging Face after accepting the licence there. Only the shape of the model is used; the texture steps of
-the original program are not run.
