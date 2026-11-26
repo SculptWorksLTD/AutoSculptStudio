@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="it">
+<!-- AutoSculpt Studio · phone page · © 2026 Enrico Migliorati. All rights reserved. -->
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AutoSculpt Studio</title>
+<meta name="theme-color" content="#1e1e1e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Studio">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="/icon-192.png">
+<style>
+:root{--bg:#1e1e1e;--panel:#2a2a2a;--ink:#e2e2e2;--muted:#9b9b9b;--line:#3b3b3b;--accent:#3d7fe6;--ok:#6cc08f;--bad:#ff6b5e;--warn:#e2b457;color-scheme:dark}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+body{padding:calc(12px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(24px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+header{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+header img{width:34px;height:34px;border-radius:8px}
+header b{font-size:18px}
+header small{display:block;color:var(--muted);font-size:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px;display:flex;flex-direction:column;gap:12px}
+.mic{width:100%;padding:22px;border-radius:12px;border:0;background:var(--accent);color:#fff;font-size:20px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:6px}
+.mic.rec{background:var(--bad)}
+.mic span{font-size:44px;line-height:1}
+.level{height:6px;border-radius:3px;background:var(--line);overflow:hidden}.level div{height:100%;width:0;background:var(--accent)}
+textarea{width:100%;font:inherit;color:var(--ink);background:#1b1b1b;border:1px solid var(--line);border-radius:8px;padding:10px;resize:vertical;min-height:84px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+label.ck{display:flex;gap:8px;align-items:center}
+select{font:inherit;color:var(--ink);background:#1b1b1b;border:1px solid var(--line);border-radius:8px;padding:6px}
+.btn{font:inherit;font-weight:600;border:1px solid var(--line);background:#333;color:var(--ink);border-radius:10px;padding:12px 16px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;flex:1}
+.note{color:var(--muted);font-size:14px;margin:0}
+.note.err{color:var(--bad)}
+h2{font-size:15px;margin:4px 0 8px;color:var(--muted);font-weight:600}
+.req{display:flex;gap:10px;align-items:center;padding:10px;background:var(--panel);border:1px solid var(--line);border-radius:10px;margin-bottom:8px;width:100%;text-align:left;color:inherit;font:inherit}
+.req img,.req .ph{width:64px;height:64px;border-radius:6px;object-fit:cover;background:#111;flex:none}
+.req .tx{min-width:0;flex:1}.req b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st{font-size:13px;color:var(--muted)}.st.ok{color:var(--ok)}.st.bad{color:var(--bad)}.st.wait{color:var(--warn)}
+.bar{height:4px;border-radius:2px;background:var(--line);overflow:hidden;margin-top:6px}.bar div{height:100%;background:var(--accent)}
+.pics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.pics button{padding:0;border:3px solid transparent;border-radius:8px;background:#fff;overflow:hidden}
+.pics img{display:block;width:100%}
+.photos{display:flex;gap:6px;flex-wrap:wrap}.photos img{width:64px;height:64px;object-fit:cover;border-radius:6px}
+.big{width:100%;border-radius:8px;background:#fff}
+</style>
+</head>
+<body>
+<header><img src="/icon-192.png" alt=""><div><b>AutoSculpt Studio</b><small id="tag"></small></div></header>
+<div id="nolink" class="card" hidden><p id="nolinkT"></p></div>
+<div id="main" hidden>
+  <div class="card">
+    <button class="mic" id="mic"><span>🎤</span><em id="micT" style="font-style:normal"></em></button>
+    <div class="level" id="level" hidden><div id="levelBar"></div></div>
+    <textarea id="text"></textarea>
+    <div class="photos" id="photos"></div>
+    <div class="row">
+      <label class="ck"><input type="checkbox" id="sym" checked> <span id="symT"></span></label>
+      <span style="flex:1"></span>
+      <span id="countT" class="note"></span><select id="count"><option>2</option><option selected>4</option><option>1</option></select>
+    </div>
+    <div class="row">
+      <label class="btn" for="cam" id="camT"></label><input type="file" id="cam" accept="image/*" multiple hidden>
+      <button class="btn primary" id="send"></button>
+    </div>
+    <p class="note" id="msg"></p>
+  </div>
+  <h2 id="histT"></h2>
+  <div id="list"></div>
+</div>
+<div id="detail" hidden></div>
+<script>
+const L = (navigator.language || 'en').slice(0, 2);
+const D = {
+  it: { tag: 'Dal sogno alla realtà', nolink: 'Apri questa pagina dal codice QR che mostra AutoSculpt Studio sul computer (pulsante Telefono).', mic: 'Tocca e parla', stop: 'Tocca per finire', text: 'Oppure scrivi cosa vuoi scolpire…', sym: 'Soggetto simmetrico', count: 'Immagini', cam: '📷 Foto', send: 'Manda', hist: 'Le tue richieste', sending: 'Invio…', sent: 'Mandato: il computer ci sta lavorando.', empty: 'Detta o scrivi cosa vuoi, oppure aggiungi foto.', noMic: 'Il microfono non è disponibile: scrivi il testo.', fail: 'Invio non riuscito: ', queued: 'In attesa del computer', listening: 'Scrivo quello che hai detto', prompt: 'Scrivo il prompt', drawing: 'Disegno le immagini', choose: 'Scegli un\'immagine', model: 'Costruisco il modello 3D', done: 'Pronto in AutoSculpt Studio', error: 'Non riuscito', pick: 'Tocca l\'immagine da usare per il modello 3D', picked: 'Scelta mandata: il computer costruisce il modello 3D.', back: '‹ Indietro', none: 'Ancora nessuna richiesta.', ready: 'Il modello è in AutoSculpt Studio, sul computer: guardalo e mandalo ad AutoSculpt 3D.', short: 'Registrazione troppo corta.' },
+  en: { tag: 'From dream to reality', nolink: 'Open this page from the QR code shown by AutoSculpt Studio on the computer (Phone button).', mic: 'Tap and speak', stop: 'Tap to finish', text: 'Or write what you want to sculpt…', sym: 'Symmetric subject', count: 'Pictures', cam: '📷 Photos', send: 'Send', hist: 'Your requests', sending: 'Sending…', sent: 'Sent: the computer is working on it.', empty: 'Dictate or write what you want, or add photos.', noMic: 'The microphone is not available: type the text.', fail: 'Sending failed: ', queued: 'Waiting for the computer', listening: 'Writing what you said', prompt: 'Writing the prompt', drawing: 'Drawing the pictures', choose: 'Choose a picture', model: 'Building the 3D model', done: 'Ready in AutoSculpt Studio', error: 'Not done', pick: 'Tap the picture to use for the 3D model', picked: 'Choice sent: the computer builds the 3D model.', back: '‹ Back', none: 'No requests yet.', ready: 'The model is in AutoSculpt Studio on the computer: look at it and send it to AutoSculpt 3D.', short: 'Recording too short.' },
+  de: { tag: 'Vom Traum zur Wirklichkeit', nolink: 'Öffne diese Seite über den QR-Code, den AutoSculpt Studio auf dem Computer zeigt (Schaltfläche Handy).', mic: 'Tippen und sprechen', stop: 'Zum Beenden tippen', text: 'Oder schreibe, was du formen willst…', sym: 'Symmetrisches Motiv', count: 'Bilder', cam: '📷 Fotos', send: 'Senden', hist: 'Deine Anfragen', sending: 'Wird gesendet…', sent: 'Gesendet: Der Computer arbeitet daran.', empty: 'Diktiere oder schreibe, was du willst, oder füge Fotos hinzu.', noMic: 'Das Mikrofon ist nicht verfügbar: Schreibe den Text.', fail: 'Senden fehlgeschlagen: ', queued: 'Wartet auf den Computer', listening: 'Schreibt, was du gesagt hast', prompt: 'Schreibt den Prompt', drawing: 'Zeichnet die Bilder', choose: 'Wähle ein Bild', model: 'Erstellt das 3D-Modell', done: 'Fertig in AutoSculpt Studio', error: 'Nicht erledigt', pick: 'Tippe auf das Bild für das 3D-Modell', picked: 'Auswahl gesendet: Der Computer erstellt das 3D-Modell.', back: '‹ Zurück', none: 'Noch keine Anfragen.', ready: 'Das Modell ist in AutoSculpt Studio auf dem Computer: Sieh es dir an und sende es an AutoSculpt 3D.', short: 'Aufnahme zu kurz.' },
+  fr: { tag: 'Du rêve à la réalité', nolink: 'Ouvre cette page avec le code QR affiché par AutoSculpt Studio sur l\'ordinateur (bouton Téléphone).', mic: 'Touche et parle', stop: 'Touche pour finir', text: 'Ou écris ce que tu veux sculpter…', sym: 'Sujet symétrique', count: 'Images', cam: '📷 Photos', send: 'Envoyer', hist: 'Tes demandes', sending: 'Envoi…', sent: 'Envoyé : l\'ordinateur s\'en occupe.', empty: 'Dicte ou écris ce que tu veux, ou ajoute des photos.', noMic: 'Le micro n\'est pas disponible : écris le texte.', fail: 'Envoi échoué : ', queued: 'En attente de l\'ordinateur', listening: 'J\'écris ce que tu as dit', prompt: 'J\'écris le prompt', drawing: 'Je dessine les images', choose: 'Choisis une image', model: 'Je construis le modèle 3D', done: 'Prêt dans AutoSculpt Studio', error: 'Pas fait', pick: 'Touche l\'image à utiliser pour le modèle 3D', picked: 'Choix envoyé : l\'ordinateur construit le modèle 3D.', back: '‹ Retour', none: 'Pas encore de demandes.', ready: 'Le modèle est dans AutoSculpt Studio sur l\'ordinateur : regarde-le et envoie-le à AutoSculpt 3D.', short: 'Enregistrement trop court.' },
+  es: { tag: 'Del sueño a la realidad', nolink: 'Abre esta página desde el código QR que muestra AutoSculpt Studio en el ordenador (botón Teléfono).', mic: 'Toca y habla', stop: 'Toca para terminar', text: 'O escribe lo que quieres esculpir…', sym: 'Sujeto simétrico', count: 'Imágenes', cam: '📷 Fotos', send: 'Enviar', hist: 'Tus peticiones', sending: 'Enviando…', sent: 'Enviado: el ordenador está trabajando.', empty: 'Dicta o escribe lo que quieres, o añade fotos.', noMic: 'El micrófono no está disponible: escribe el texto.', fail: 'No se pudo enviar: ', queued: 'Esperando al ordenador', listening: 'Escribiendo lo que dijiste', prompt: 'Escribiendo el prompt', drawing: 'Dibujando las imágenes', choose: 'Elige una imagen', model: 'Construyendo el modelo 3D', done: 'Listo en AutoSculpt Studio', error: 'No hecho', pick: 'Toca la imagen para el modelo 3D', picked: 'Elección enviada: el ordenador construye el modelo 3D.', back: '‹ Atrás', none: 'Aún no hay peticiones.', ready: 'El modelo está en AutoSculpt Studio en el ordenador: míralo y envíalo a AutoSculpt 3D.', short: 'Grabación demasiado corta.' },
+  pt: { tag: 'Do sonho à realidade', nolink: 'Abra esta página pelo código QR mostrado pelo AutoSculpt Studio no computador (botão Celular).', mic: 'Toque e fale', stop: 'Toque para terminar', text: 'Ou escreva o que quer esculpir…', sym: 'Objeto simétrico', count: 'Imagens', cam: '📷 Fotos', send: 'Enviar', hist: 'Seus pedidos', sending: 'Enviando…', sent: 'Enviado: o computador está trabalhando.', empty: 'Dite ou escreva o que quer, ou adicione fotos.', noMic: 'O microfone não está disponível: escreva o texto.', fail: 'Falha no envio: ', queued: 'Aguardando o computador', listening: 'Escrevendo o que você disse', prompt: 'Escrevendo o prompt', drawing: 'Desenhando as imagens', choose: 'Escolha uma imagem', model: 'Construindo o modelo 3D', done: 'Pronto no AutoSculpt Studio', error: 'Não feito', pick: 'Toque na imagem para o modelo 3D', picked: 'Escolha enviada: o computador constrói o modelo 3D.', back: '‹ Voltar', none: 'Ainda nenhum pedido.', ready: 'O modelo está no AutoSculpt Studio no computador: veja e envie para o AutoSculpt 3D.', short: 'Gravação curta demais.' },
+  ja: { tag: '夢を現実に', nolink: 'コンピューターの AutoSculpt Studio に表示される QR コード（スマートフォンボタン）からこのページを開いてください。', mic: 'タップして話す', stop: 'タップして終了', text: 'または作りたいものを書いてください…', sym: '左右対称の題材', count: '画像', cam: '📷 写真', send: '送信', hist: 'あなたのリクエスト', sending: '送信中…', sent: '送信しました。コンピューターが作業しています。', empty: '作りたいものを話すか書くか、写真を追加してください。', noMic: 'マイクを使えません。文字で入力してください。', fail: '送信できませんでした: ', queued: 'コンピューターを待っています', listening: '話した内容を書いています', prompt: 'プロンプトを書いています', drawing: '画像を描いています', choose: '画像を選んでください', model: '3D モデルを作っています', done: 'AutoSculpt Studio で完成', error: 'できませんでした', pick: '3D モデルに使う画像をタップしてください', picked: '選択を送りました。コンピューターが 3D モデルを作ります。', back: '‹ 戻る', none: 'まだリクエストはありません。', ready: 'モデルはコンピューターの AutoSculpt Studio にあります。確認して AutoSculpt 3D に送ってください。', short: '録音が短すぎます。' },
+};
+const T = D[L] || D.en, $ = (id) => document.getElementById(id);
+document.documentElement.lang = L;
+const params = new URLSearchParams(location.search);
+let K = params.get('k') || ''; try { if (K) localStorage.setItem('studioK', K); else K = localStorage.getItem('studioK') || ''; } catch (e) {}
+// the home-screen icon opens the page with its key
+if (K) { const m = document.createElement('link'); m.rel = 'manifest'; m.href = '/manifest.json?k=' + encodeURIComponent(K); document.head.appendChild(m); }
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+$('tag').textContent = T.tag;
+if (!K) { $('nolink').hidden = false; $('nolinkT').textContent = T.nolink; }
+else {
+  $('main').hidden = false;
+  $('micT').textContent = T.mic; $('text').placeholder = T.text; $('symT').textContent = T.sym; $('countT').textContent = T.count;
+  $('camT').textContent = T.cam; $('send').textContent = T.send; $('histT').textContent = T.hist;
+}
+const H = () => ({ 'X-Phone-Key': K });
+const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+const esc = (s) => String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function msg(t, err) { $('msg').textContent = t || ''; $('msg').className = 'note' + (err ? ' err' : ''); }
+
+/* the voice note: recorded as WAV, 16 kHz mono (small, and every service reads it) */
+let REC = null, AUDIO = null;
+async function recStart() {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } });
+  const ctx = new (window.AudioContext || window.webkitAudioContext)(), src = ctx.createMediaStreamSource(stream), proc = ctx.createScriptProcessor(4096, 1, 1), chunks = [];
+  proc.onaudioprocess = (e) => { const d = e.inputBuffer.getChannelData(0); chunks.push(new Float32Array(d)); let s = 0; for (let i = 0; i < d.length; i += 4) s += d[i] * d[i]; $('levelBar').style.width = Math.min(100, Math.sqrt(s / (d.length / 4)) * 400) + '%'; };
+  src.connect(proc); proc.connect(ctx.destination);
+  const timer = setTimeout(() => toggleMic(), 120000);
+  return { stop: async () => { clearTimeout(timer); proc.disconnect(); src.disconnect(); stream.getTracks().forEach(t => t.stop()); const rate = ctx.sampleRate; await ctx.close(); return wav(chunks, rate); } };
+}
+function wav(chunks, rate) {
+  const n = chunks.reduce((a, c) => a + c.length, 0), all = new Float32Array(n); let o = 0; for (const c of chunks) { all.set(c, o); o += c.length; }
+  const m = Math.floor(n * 16000 / rate), pcm = new Int16Array(m);
+  for (let i = 0; i < m; i++) { const x = i * rate / 16000, k = Math.floor(x), f = x - k, v = (all[k] || 0) * (1 - f) + (all[k + 1] || 0) * f; pcm[i] = Math.max(-1, Math.min(1, v)) * 32767; }
+  const buf = new ArrayBuffer(44 + pcm.length * 2), dv = new DataView(buf), str = (p, t) => { for (let i = 0; i < t.length; i++) dv.setUint8(p + i, t.charCodeAt(i)); };
+  str(0, 'RIFF'); dv.setUint32(4, 36 + pcm.length * 2, true); str(8, 'WAVEfmt '); dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true);
+  dv.setUint32(24, 16000, true); dv.setUint32(28, 32000, true); dv.setUint16(32, 2, true); dv.setUint16(34, 16, true); str(36, 'data'); dv.setUint32(40, pcm.length * 2, true);
+  new Int16Array(buf, 44).set(pcm);
+  return { blob: new Blob([buf], { type: 'audio/wav' }), seconds: m / 16000 };
+}
+async function toggleMic() {
+  if (REC) {
+    const r = REC; REC = null; $('mic').classList.remove('rec'); $('micT').textContent = T.mic; $('level').hidden = true;
+    const a = await r.stop();
+    if (a.seconds < 0.6) { msg(T.short, true); return; }
+    AUDIO = a; return send();   // a voice note goes at once, as in Voice2Code
+  }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { msg(T.noMic, true); return; }
+  try { REC = await recStart(); $('mic').classList.add('rec'); $('micT').textContent = T.stop; $('level').hidden = false; msg(''); }
+  catch (e) { REC = null; msg(T.noMic + ' (' + (e.name || e.message) + ')', true); }
+}
+$('mic') && ($('mic').onclick = toggleMic);
+
+/* photos from the camera or the gallery (largest side 2048 px) */
+let PHOTOS = [];
+async function shrink(file) {
+  const bmp = await createImageBitmap(file), k = Math.min(1, 2048 / Math.max(bmp.width, bmp.height)), c = document.createElement('canvas');
+  c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k); const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(bmp, 0, 0, c.width, c.height);
+  return new Promise(r => c.toBlob(r, 'image/jpeg', 0.9));
+}
+$('cam') && ($('cam').onchange = async () => {
+  for (const f of [...$('cam').files].slice(0, 5 - PHOTOS.length)) PHOTOS.push(await shrink(f));
+  $('photos').innerHTML = PHOTOS.map(b => `<img src="${URL.createObjectURL(b)}" alt="">`).join(''); $('cam').value = '';
+});
+
+/* sending: the parts of one request, the last one says it is complete */
+async function send() {
+  const text = $('text').value.trim();
+  if (!text && !AUDIO && !PHOTOS.length) { msg(T.empty, true); return; }
+  const id = newId(), sym = $('sym').checked ? 1 : 0, parts = [];
+  if (AUDIO) parts.push(['audio/wav', AUDIO.blob]);
+  for (const p of PHOTOS) parts.push(['image/jpeg', p]);
+  parts.push(['application/json', new Blob([JSON.stringify({ text, sym: !!sym, count: +$('count').value })])]);
+  $('send').disabled = true; msg(T.sending);
+  try {
+    for (let i = 0; i < parts.length; i++) {
+      const r = await fetch(`/send?id=${id}&part=${i}&sym=${sym}&last=${i === parts.length - 1 ? 1 : 0}`, { method: 'POST', headers: { ...H(), 'Content-Type': parts[i][0] }, body: parts[i][1] });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.status);
+    }
+    msg(T.sent); $('text').value = ''; AUDIO = null; PHOTOS = []; $('photos').innerHTML = '';
+    MINE[id] = { id, state: 'queued', title: text || '🎤', at: Date.now() }; saveMine(); render(); poll();
+  } catch (e) { msg(T.fail + e.message, true); }
+  finally { $('send').disabled = false; }
+}
+$('send') && ($('send').onclick = send);
+
+/* the requests and how far they got */
+let MINE = {}; try { MINE = JSON.parse(localStorage.getItem('studioMine') || '{}'); } catch (e) {}
+const saveMine = () => { try { localStorage.setItem('studioMine', JSON.stringify(MINE)); } catch (e) {} };
+let OPEN = null, timer = 0;
+async function poll() {
+  clearTimeout(timer);
+  try {
+    const r = await fetch('/history', { headers: H() });
+    if (r.ok) for (const h of await r.json()) MINE[h.id] = Object.assign(MINE[h.id] || {}, h);
+    const live = Object.values(MINE).filter(x => !['done', 'error'].includes(x.state)).map(x => x.id);
+    if (OPEN && !live.includes(OPEN)) live.push(OPEN);
+    for (const id of live) { const s = await fetch('/status/' + id, { headers: H() }); if (s.ok) MINE[id] = Object.assign(MINE[id] || {}, await s.json()); }
+    saveMine(); render();
+  } catch (e) {}
+  timer = setTimeout(poll, Object.values(MINE).some(x => !['done', 'error'].includes(x.state)) ? 4000 : 15000);
+}
+function stateLine(x) {
+  const cls = x.state === 'done' ? 'ok' : x.state === 'error' ? 'bad' : x.state === 'choose' ? 'wait' : '';
+  return `<span class="st ${cls}">${esc(T[x.state] || x.state || '')}${x.state === 'model' && x.progress ? ' · ' + x.progress + '%' : ''}</span>`;
+}
+function render() {
+  if (OPEN) return renderDetail();
+  const list = Object.values(MINE).sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 30);
+  $('list').innerHTML = list.length ? list.map(x => `<button class="req" data-id="${esc(x.id)}">${x.thumb ? `<img src="${x.thumb}" alt="">` : (x.thumbs && x.thumbs[0] ? `<img src="${x.thumbs[0]}" alt="">` : '<span class="ph"></span>')}
+    <span class="tx"><b>${esc(x.title || '…')}</b>${stateLine(x)}${x.state === 'model' ? `<div class="bar"><div style="width:${x.progress || 5}%"></div></div>` : ''}</span></button>`).join('') : `<p class="note">${T.none}</p>`;
+  document.querySelectorAll('.req').forEach(b => { b.onclick = () => { OPEN = b.dataset.id; $('main').hidden = true; $('detail').hidden = false; render(); poll(); }; });
+}
+function renderDetail() {
+  const x = MINE[OPEN] || {};
+  let body = `<button class="btn" id="back">${T.back}</button><div class="card"><b>${esc(x.title || '')}</b>${stateLine(x)}`;
+  if (x.state === 'choose' && x.thumbs) body += `<p class="note">${T.pick}</p><div class="pics">${x.thumbs.map((u, i) => `<button data-i="${i}"><img src="${u}" alt=""></button>`).join('')}</div>`;
+  else if (x.state === 'done') body += `${x.thumb ? `<img class="big" src="${x.thumb}" alt="">` : ''}<p class="note">${T.ready}</p>`;
+  else if (x.state === 'error') body += `<p class="note err">${esc(x.message || '')}</p>`;
+  else if (x.thumb) body += `<img class="big" src="${x.thumb}" alt="">${x.state === 'model' ? `<div class="bar"><div style="width:${x.progress || 5}%"></div></div>` : ''}`;
+  $('detail').innerHTML = body + '</div>';
+  $('back').onclick = () => { OPEN = null; $('detail').hidden = true; $('main').hidden = false; render(); };
+  document.querySelectorAll('.pics button').forEach(b => { b.onclick = async () => {
+    const r = await fetch(`/send?id=${OPEN}&part=${10 + (x.picks = (x.picks || 0) + 1)}&last=1`, { method: 'POST', headers: { ...H(), 'Content-Type': 'application/json' }, body: JSON.stringify({ pick: +b.dataset.i }) });
+    if (r.ok) { x.state = 'model'; x.progress = 0; saveMine(); render(); alertNote(T.picked); poll(); }
+  }; });
+}
+function alertNote(t) { const n = document.createElement('p'); n.className = 'note'; n.textContent = t; $('detail').appendChild(n); }
+if (K) { render(); poll(); }
+</script>
+</body>
+</html>
