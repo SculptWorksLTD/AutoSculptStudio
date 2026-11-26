@@ -46,7 +46,12 @@ with zipfile.ZipFile(zp) as z:
                 fo.write(fi.read())
 
 code = r'''
-import importlib.util, os, sys, json
+import importlib.util, os, sys, json, traceback
+def _hook(t, v, tb):
+    lines = "".join(traceback.format_exception(t, v, tb)).strip().splitlines()
+    for chunk in range(0, len(lines), 6):
+        print("::error::" + " | ".join(l.strip() for l in lines[chunk:chunk + 6])[:900], flush=True)
+sys.excepthook = _hook
 eng, src, work = sys.argv[1], sys.argv[2], sys.argv[3]
 sys.path.insert(0, src)
 spec = importlib.util.spec_from_file_location("runner", os.path.join(eng, "runner.py"))
