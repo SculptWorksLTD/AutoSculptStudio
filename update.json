@@ -1,17 +1,30 @@
 {
   "product": "AutoSculpt Studio",
-  "latest": "1.0.3",
-  "notes": "Gemini is much faster: the prompt is written in a few seconds, and a picture that cannot be drawn tells you why at once. One picture per description, and Gemini decides by itself whether the subject is symmetric.",
+  "latest": "1.0.4",
+  "notes": "Pictures without paying for the API: \"Copy and open Gemini\" copies the prompt and opens Gemini; paste or drag the picture you made there into AutoSculpt Studio and it builds the 3D model from its three views. Works from the phone too.",
   "notes_i18n": {
-    "en": "Gemini is much faster: the prompt is written in a few seconds, and a picture that cannot be drawn tells you why at once. One picture per description, and Gemini decides by itself whether the subject is symmetric.",
-    "it": "Gemini molto più veloce: il prompt arriva in pochi secondi e, se un'immagine non si può disegnare, il motivo compare subito. Una sola immagine per descrizione, e Gemini decide da solo se il soggetto è simmetrico.",
-    "de": "Gemini ist viel schneller: Der Prompt kommt in wenigen Sekunden, und wenn ein Bild nicht gezeichnet werden kann, steht der Grund sofort da. Ein Bild pro Beschreibung, und Gemini entscheidet selbst, ob das Motiv symmetrisch ist.",
-    "fr": "Gemini est beaucoup plus rapide : le prompt arrive en quelques secondes et, si une image ne peut pas être dessinée, la raison s'affiche tout de suite. Une seule image par description, et Gemini décide seul si le sujet est symétrique.",
-    "es": "Gemini es mucho más rápido: el prompt llega en pocos segundos y, si una imagen no se puede dibujar, el motivo aparece enseguida. Una sola imagen por descripción, y Gemini decide solo si el sujeto es simétrico.",
-    "pt": "O Gemini ficou muito mais rápido: o prompt chega em poucos segundos e, se uma imagem não puder ser desenhada, o motivo aparece na hora. Uma imagem por descrição, e o Gemini decide sozinho se o objeto é simétrico.",
-    "ja": "Gemini が大幅に速くなりました。プロンプトは数秒で書かれ、画像を描けない場合はすぐに理由が表示されます。説明ごとに画像は1枚で、題材が左右対称かどうかは Gemini が判断します。"
+    "en": "Pictures without paying for the API: \"Copy and open Gemini\" copies the prompt and opens Gemini; paste or drag the picture you made there into AutoSculpt Studio and it builds the 3D model from its three views. Works from the phone too.",
+    "it": "Immagini senza pagare le API: «Copia e apri Gemini» copia il prompt e apre Gemini; incolla o trascina in AutoSculpt Studio l'immagine che hai fatto lì e il modello 3D si costruisce dalle sue tre viste. Funziona anche dal telefono.",
+    "de": "Bilder ohne bezahlte API: „Kopieren und Gemini öffnen“ kopiert den Prompt und öffnet Gemini; füge das dort erstellte Bild in AutoSculpt Studio ein oder ziehe es hinein, und das 3D-Modell entsteht aus seinen drei Ansichten. Geht auch vom Handy.",
+    "fr": "Des images sans payer l'API : « Copier et ouvrir Gemini » copie le prompt et ouvre Gemini ; colle ou fais glisser dans AutoSculpt Studio l'image faite là-bas et le modèle 3D se construit à partir de ses trois vues. Marche aussi depuis le téléphone.",
+    "es": "Imágenes sin pagar la API: «Copiar y abrir Gemini» copia el prompt y abre Gemini; pega o arrastra en AutoSculpt Studio la imagen que hiciste allí y el modelo 3D se construye con sus tres vistas. Funciona también desde el teléfono.",
+    "pt": "Imagens sem pagar a API: «Copiar e abrir o Gemini» copia o prompt e abre o Gemini; cole ou arraste no AutoSculpt Studio a imagem feita lá e o modelo 3D é construído a partir das três vistas. Funciona também pelo celular.",
+    "ja": "API の支払いなしで画像を作成：「コピーして Gemini を開く」でプロンプトをコピーして Gemini を開き、そこで作った画像を AutoSculpt Studio に貼り付けるかドラッグすると、3つのビューから 3D モデルを作ります。スマートフォンからも使えます。"
   },
   "history": [
+    {
+      "date": "2026-11-26T18:35:53Z",
+      "version": "1.0.4",
+      "notes": {
+        "en": "Pictures without paying for the API: \"Copy and open Gemini\" copies the prompt and opens Gemini; paste or drag the picture you made there into AutoSculpt Studio and it builds the 3D model from its three views. Works from the phone too.",
+        "it": "Immagini senza pagare le API: «Copia e apri Gemini» copia il prompt e apre Gemini; incolla o trascina in AutoSculpt Studio l'immagine che hai fatto lì e il modello 3D si costruisce dalle sue tre viste. Funziona anche dal telefono.",
+        "de": "Bilder ohne bezahlte API: „Kopieren und Gemini öffnen“ kopiert den Prompt und öffnet Gemini; füge das dort erstellte Bild in AutoSculpt Studio ein oder ziehe es hinein, und das 3D-Modell entsteht aus seinen drei Ansichten. Geht auch vom Handy.",
+        "fr": "Des images sans payer l'API : « Copier et ouvrir Gemini » copie le prompt et ouvre Gemini ; colle ou fais glisser dans AutoSculpt Studio l'image faite là-bas et le modèle 3D se construit à partir de ses trois vues. Marche aussi depuis le téléphone.",
+        "es": "Imágenes sin pagar la API: «Copiar y abrir Gemini» copia el prompt y abre Gemini; pega o arrastra en AutoSculpt Studio la imagen que hiciste allí y el modelo 3D se construye con sus tres vistas. Funciona también desde el teléfono.",
+        "pt": "Imagens sem pagar a API: «Copiar e abrir o Gemini» copia o prompt e abre o Gemini; cole ou arraste no AutoSculpt Studio a imagem feita lá e o modelo 3D é construído a partir das três vistas. Funciona também pelo celular.",
+        "ja": "API の支払いなしで画像を作成：「コピーして Gemini を開く」でプロンプトをコピーして Gemini を開き、そこで作った画像を AutoSculpt Studio に貼り付けるかドラッグすると、3つのビューから 3D モデルを作ります。スマートフォンからも使えます。"
+      }
+    },
     {
       "date": "2026-11-26T18:11:17Z",
       "version": "1.0.3",
@@ -66,12 +79,12 @@
     }
   ],
   "ui": {
-    "version": "1.0.3",
+    "version": "1.0.4",
     "files": [
       {
         "path": "AutoSculptStudio.html",
         "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/ui/AutoSculptStudio.html",
-        "sha256": "e3cf7bbf823c8ec65d9c23ab2142e64fbe423d70910f1091a3315918e22edd51"
+        "sha256": "7b6661eef9f004b23daaee983db296e8714149068be59712c4309addd1d0545c"
       }
     ]
   },
