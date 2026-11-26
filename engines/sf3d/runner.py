@@ -28,11 +28,10 @@ DINO_LARGE = dict(hidden_size=1024, num_hidden_layers=24, num_attention_heads=16
 def install_shims():
 
     def stub(name, **attrs):
-        if name in sys.modules:
-            return
         try:
-            __import__(name)
-            return
+            m = sys.modules.get(name) or __import__(name)
+            if all((hasattr(m, k) for k in attrs)) and getattr(m, '__file__', None):
+                return
         except Exception:
             pass
         mod = types.ModuleType(name)

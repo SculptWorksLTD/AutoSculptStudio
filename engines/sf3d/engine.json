@@ -1,7 +1,7 @@
 {
   "id": "sf3d",
   "name": "Stable Fast 3D",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "install_version": "1.0.0",
   "description": "A second engine on this computer: a 3D shape from one photo in about a minute, free and offline after the installation. Softer and less detailed than the main local engine, useful to compare. Powered by Stability AI.",
   "license": "Stability AI Community License: free also for commercial use below 1 million USD of yearly revenue (registration with Stability AI required)",
@@ -16,20 +16,51 @@
   "steps": [
     {
       "label": "PyTorch (computing engine)",
-      "pkgs": ["torch", "torchvision"],
-      "win_nvidia": ["--index-url", "https://download.pytorch.org/whl/cu124", "--extra-index-url", "https://pypi.org/simple"]
+      "pkgs": [
+        "torch",
+        "torchvision"
+      ],
+      "win_nvidia": [
+        "--index-url",
+        "https://download.pytorch.org/whl/cu124",
+        "--extra-index-url",
+        "https://pypi.org/simple"
+      ]
     },
     {
       "label": "geometry libraries",
-      "pkgs": ["einops", "omegaconf", "jaxtyping", "trimesh", "scipy", "Pillow", "safetensors", "huggingface-hub<1.0"]
+      "pkgs": [
+        "einops",
+        "omegaconf",
+        "jaxtyping",
+        "trimesh",
+        "scipy",
+        "Pillow",
+        "safetensors",
+        "huggingface-hub<1.0"
+      ]
     },
     {
       "label": "vision model",
-      "alternatives": [["transformers>=4.40,<4.48"], ["transformers>=4.40,<4.50"]]
+      "alternatives": [
+        [
+          "transformers>=4.40,<4.48"
+        ],
+        [
+          "transformers>=4.40,<4.50"
+        ]
+      ]
     },
     {
       "label": "background removal",
-      "alternatives": [["rembg[cpu]"], ["rembg"]]
+      "alternatives": [
+        [
+          "rembg[cpu]"
+        ],
+        [
+          "rembg"
+        ]
+      ]
     }
   ],
   "source": {
@@ -37,11 +68,19 @@
   },
   "weights": {
     "hf_repo": "stabilityai/stable-fast-3d",
-    "files": ["config.yaml", "model.safetensors"]
+    "files": [
+      "config.yaml",
+      "model.safetensors"
+    ]
   },
   "runner": "runner.py",
   "options": [
-    {"id": "remove_bg", "label": "Remove the photo background", "type": "bool", "default": true}
+    {
+      "id": "remove_bg",
+      "label": "Remove the photo background",
+      "type": "bool",
+      "default": true
+    }
   ],
   "order": 85
 }
