@@ -216,6 +216,8 @@ def main():
     say('PROGRESS', '0.92', 'Cleaning and orienting the model')
     import trimesh
     mesh = trimesh.Trimesh(np.asarray(verts, dtype=np.float32), np.asarray(faces), process=True)
+    mesh.apply_transform(trimesh.transformations.rotation_matrix(np.radians(-90), [1, 0, 0]))
+    mesh.apply_transform(trimesh.transformations.rotation_matrix(np.radians(90), [0, 1, 0]))
     try:
         parts = mesh.split(only_watertight=False)
         if len(parts) > 1:

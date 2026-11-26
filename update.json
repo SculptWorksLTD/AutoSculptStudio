@@ -1,17 +1,30 @@
 {
   "product": "AutoSculpt Studio",
   "latest": "1.0.5",
-  "notes": "Fast 3D on this computer: fixed the loading of the engine.",
+  "notes": "Fast 3D on this computer: the models now come out standing, like those of the other engine.",
   "notes_i18n": {
-    "en": "Fast 3D on this computer: fixed the loading of the engine.",
-    "it": "3D veloce su questo computer: corretto il caricamento del motore.",
-    "de": "Schnelles 3D auf diesem Computer: Laden der Engine korrigiert.",
-    "fr": "3D rapide sur cet ordinateur : chargement du moteur corrigé.",
-    "es": "3D rápido en este ordenador: corregida la carga del motor.",
-    "pt": "3D rápido neste computador: corrigido o carregamento do motor.",
-    "ja": "このコンピューターで高速3D：エンジンの読み込みを修正しました。"
+    "en": "Fast 3D on this computer: the models now come out standing, like those of the other engine.",
+    "it": "3D veloce su questo computer: i modelli ora escono in piedi, come quelli dell'altro motore.",
+    "de": "Schnelles 3D auf diesem Computer: Die Modelle stehen jetzt aufrecht, wie die der anderen Engine.",
+    "fr": "3D rapide sur cet ordinateur : les modèles sortent maintenant debout, comme ceux de l'autre moteur.",
+    "es": "3D rápido en este ordenador: los modelos ahora salen de pie, como los del otro motor.",
+    "pt": "3D rápido neste computador: os modelos agora saem em pé, como os do outro motor.",
+    "ja": "このコンピューターで高速3D：もう一方のエンジンと同じく、モデルが立った向きで出力されるようになりました。"
   },
   "history": [
+    {
+      "date": "2026-11-26T22:04:10Z",
+      "version": "1.0.5",
+      "notes": {
+        "en": "Fast 3D on this computer: the models now come out standing, like those of the other engine.",
+        "it": "3D veloce su questo computer: i modelli ora escono in piedi, come quelli dell'altro motore.",
+        "de": "Schnelles 3D auf diesem Computer: Die Modelle stehen jetzt aufrecht, wie die der anderen Engine.",
+        "fr": "3D rapide sur cet ordinateur : les modèles sortent maintenant debout, comme ceux de l'autre moteur.",
+        "es": "3D rápido en este ordenador: los modelos ahora salen de pie, como los del otro motor.",
+        "pt": "3D rápido neste computador: os modelos agora saem em pé, como os do outro motor.",
+        "ja": "このコンピューターで高速3D：もう一方のエンジンと同じく、モデルが立った向きで出力されるようになりました。"
+      }
+    },
     {
       "date": "2026-11-26T19:52:26Z",
       "version": "1.0.5",
@@ -184,17 +197,17 @@
     {
       "id": "sf3d",
       "name": "Stable Fast 3D",
-      "version": "1.0.1",
+      "version": "1.0.2",
       "files": [
         {
           "path": "engine.json",
           "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/engines/sf3d/engine.json",
-          "sha256": "372f218a37f90afaa2c7ed439ff118c251ed56c8c396fe3bb4ca1a252d48c044"
+          "sha256": "90801ebb28b4b0aaa1f4a1f0c80aa8ff2e8415a13fd0b57e5c98c2c22da526eb"
         },
         {
           "path": "runner.py",
           "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/engines/sf3d/runner.py",
-          "sha256": "8eb70083830c55e7416709ffc41bbded97280f3df2d3e23332f078d5612e2ef4"
+          "sha256": "d7bd207fd077d554f397d56aaf85ddb2078846e085ce2a020e51672417cfa538"
         },
         {
           "path": "LICENSE.md",

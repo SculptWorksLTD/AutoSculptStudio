@@ -1,7 +1,7 @@
 {
   "id": "sf3d",
   "name": "Stable Fast 3D",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "install_version": "1.0.0",
   "description": "A second engine on this computer: a 3D shape from one photo in about a minute, free and offline after the installation. Softer and less detailed than the main local engine, useful to compare. Powered by Stability AI.",
   "license": "Stability AI Community License: free also for commercial use below 1 million USD of yearly revenue (registration with Stability AI required)",
