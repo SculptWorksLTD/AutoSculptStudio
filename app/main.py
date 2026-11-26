@@ -816,7 +816,7 @@ def run_text2text(job, spec, task, text, context, symmetric=False):
         ctx.write_text(context, encoding='utf-8')
         cmd += ['--context-file', ctx]
     if symmetric:
-        cmd += ['--symmetric', '1']
+        cmd += ['--symmetric', 'auto' if symmetric == 'auto' else '1']
     errors = []
     rc = stream(job, cmd, env={'AUTOSCULPT_API_KEY': key}, on_line=lambda l: parse_runner_line(job, l, errors))
     if job.cancelled:
@@ -1510,7 +1510,7 @@ class Handler(BaseHTTPRequestHandler):
                     return self.send_json({'error': 'Write a description of the subject'}, 400)
                 context = str(b.get('context') or '')[:60000] if task == 'metalwork' else ''
                 job = Job('text2text', 'Description to text')
-                run_job(job, lambda j: run_text2text(j, spec, task, text, context, symmetric=bool(b.get('symmetric'))))
+                run_job(job, lambda j: run_text2text(j, spec, task, text, context, symmetric='auto' if b.get('symmetric') in (None, 'auto') else bool(b.get('symmetric'))))
                 return self.send_json(job.as_dict())
             if path == '/api/speech2text':
                 spec = engine_specs().get(b.get('engine') or '')

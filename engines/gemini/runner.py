@@ -2,6 +2,7 @@
 import argparse
 import base64
 import json
+import re
 import os
 import http.client
 import shutil
@@ -33,6 +34,13 @@ class Fail(Exception):
 class NoModel(Exception):
     pass
 
+class NoQuota(NoModel):
+
+    def __init__(self, kind):
+        super().__init__(kind)
+        self.kind = kind
+_NOQ = {}
+
 class Busy(Exception):
 
     def __init__(self, quota=False):
@@ -57,12 +65,16 @@ def http_fail(model, code, raw):
         err = json.loads(raw).get('error') or {}
     except (ValueError, AttributeError):
         err = {}
-    msg, status = (str(err.get('message') or raw)[:300], str(err.get('status') or ''))
+    msg, status = (str(err.get('message') or raw)[:2000], str(err.get('status') or ''))
     if code == 404 or status == 'NOT_FOUND':
         return NoModel(model)
     if code in (401, 403) or 'API key not valid' in msg or status in ('UNAUTHENTICATED', 'PERMISSION_DENIED'):
         return Fail('{service} refused the API key: check it in Tools → Engines and online services', service=SERVICE)
     if code == 429 or status == 'RESOURCE_EXHAUSTED':
+        if re.search('limit:\\s*0\\b', msg + raw):
+            return NoQuota('free')
+        if re.search('per day|PerDay|per_day', msg + raw):
+            return NoQuota('day')
         return Busy(quota=True)
     if code in (500, 502, 503, 504) or status in ('UNAVAILABLE', 'INTERNAL', 'DEADLINE_EXCEEDED'):
         return Busy()
@@ -78,7 +90,7 @@ def open_url(url, key, body, timeout):
 
 def net_error(e, model):
     if isinstance(e, urllib.error.HTTPError):
-        return http_fail(model, e.code, e.read().decode('utf-8', 'replace')[:600])
+        return http_fail(model, e.code, e.read().decode('utf-8', 'replace')[:4000])
     if isinstance(e, urllib.error.URLError) and (not slow_network(e)):
         return Fail('Cannot reach {service}: check the internet connection ({detail})', service=SERVICE, detail=str(e.reason))
     if isinstance(e, (OSError, http.client.HTTPException, ValueError)):
@@ -94,24 +106,39 @@ def post(model, key, body, timeout=TEXT_WAIT):
 
 def ask(models, key, body, timeout=TEXT_WAIT):
     end, usable, quota = (time.time() + RETRY_FOR + timeout, list(models), False)
+    noq = set()
     while True:
         busy = False
         for m in list(usable):
+            if m in _NOQ:
+                usable.remove(m)
+                noq.add(_NOQ[m])
+                continue
             left = end - time.time()
             if left < 5 and busy:
                 break
             try:
                 return post(m, key, body, max(min(10, timeout), min(timeout, left)))
-            except NoModel:
+            except NoModel as e:
                 usable.remove(m)
+                if isinstance(e, NoQuota):
+                    noq.add(e.kind)
+                    _NOQ[m] = e.kind
             except Busy as b:
                 busy, quota = (True, quota or b.quota)
         if not usable:
-            raise Fail('{service}: none of the models is available for this API key', service=SERVICE)
+            raise none_left(noq, picture=True)
         if not busy or time.time() + RETRY_PAUSE > end:
             break
         time.sleep(RETRY_PAUSE)
     raise busy_fail(quota)
+
+def none_left(noq, picture=False):
+    if 'free' in noq and picture:
+        return Fail('{service} needs billing enabled on your Google AI Studio project to draw pictures', service=SERVICE)
+    if noq:
+        return Fail('{service} has reached the daily limit of your account: try again tomorrow, or enable billing in Google AI Studio', service=SERVICE)
+    return Fail('{service}: none of the models is available for this API key', service=SERVICE)
 
 def busy_fail(quota):
     if quota:
@@ -150,7 +177,7 @@ def version_of(name):
 def text_models(key):
     skip = ('image', 'tts', 'live', 'audio', 'embed', 'thinking', 'exp', 'learnlm', 'robotics', 'computer', 'omni', 'customtools', 'transcribe')
     found = [n for n in listed_models(key) if 'flash' in n and (not any((w in n for w in skip)))]
-    rank = lambda n: (('lite' in n) + 2 * ('preview' in n or 'latest' in n), -version_of(n))
+    rank = lambda n: (2 * ('preview' in n or 'latest' in n) + ('lite' not in n), -version_of(n))
     names = sorted(found, key=rank)
     names += [n for n in TEXT_MODELS + ['gemini-2.5-flash-lite'] if n not in names]
     return names[:8]
@@ -208,6 +235,7 @@ def ask_text(key, body):
     thoughts = json.loads(json.dumps(body))
     thoughts.setdefault('generationConfig', {})['thinkingConfig'] = {'includeThoughts': True}
     end, usable, quota, rnd = (time.time() + RETRY_FOR, text_models(key), False, 0)
+    noq = set()
     while True:
         busy = False
         for m in list(usable):
@@ -233,6 +261,9 @@ def ask_text(key, body):
                     continue
                 if isinstance(val, NoModel):
                     usable.remove(m)
+                    if isinstance(val, NoQuota):
+                        noq.add(val.kind)
+                        _NOQ[m] = val.kind
                     break
                 if isinstance(val, Busy):
                     busy, quota = (True, quota or val.quota)
@@ -240,7 +271,7 @@ def ask_text(key, body):
                 raise val
         rnd += 1
         if not usable:
-            raise Fail('{service}: none of the models is available for this API key', service=SERVICE)
+            raise none_left(noq)
         if not busy or time.time() + RETRY_PAUSE > end:
             break
         time.sleep(RETRY_PAUSE)
@@ -312,7 +343,7 @@ def main():
     ap.add_argument('--prompt-file', default='')
     ap.add_argument('--output-dir', default='')
     ap.add_argument('--image', default='')
-    ap.add_argument('--count', type=int, default=4)
+    ap.add_argument('--count', type=int, default=1)
     ap.add_argument('--lang', default='en')
     ap.add_argument('--symmetric', default='0')
     ap.add_argument('--work', default='.')
@@ -328,9 +359,15 @@ def main():
                 raise Fail('Write a description of the subject')
             if a.task == 'prompt':
                 say('PROGRESS', '0.1', '{service} is writing the prompt', service=SERVICE)
-                sym = a.symmetric == '1'
-                instr = P['subject'] + ' ' + P['subject_symmetric' if sym else 'subject_asymmetric']
-                subject = ' '.join(ask_text(key, text_body(instr, 'DESCRIPTION:\n' + text)).split()).strip().rstrip('.')
+                if a.symmetric == 'auto':
+                    reply = ask_text(key, text_body(P['subject'] + ' ' + P['subject_auto'], 'DESCRIPTION:\n' + text))
+                    m = re.match('\\s*\\**\\s*SYMMETRIC\\s*:\\s*\\**\\s*(yes|no)\\b\\**', reply, re.I)
+                    sym = not m or m.group(1).lower() == 'yes'
+                    reply = reply[m.end():] if m else reply
+                else:
+                    sym = a.symmetric == '1'
+                    reply = ask_text(key, text_body(P['subject'] + ' ' + P['subject_symmetric' if sym else 'subject_asymmetric'], 'DESCRIPTION:\n' + text))
+                subject = ' '.join(reply.split()).strip().rstrip('.')
                 if not subject:
                     raise Fail('{service} gave an answer that is not readable: try again', service=SERVICE)
                 out = P['sheet_symmetric' if sym else 'sheet_asymmetric'].replace('{subject}', subject)

@@ -1,17 +1,30 @@
 {
   "product": "AutoSculpt Studio",
-  "latest": "1.0.2",
-  "notes": "New icon for AutoSculpt Studio.",
+  "latest": "1.0.3",
+  "notes": "Gemini is much faster: the prompt is written in a few seconds, and a picture that cannot be drawn tells you why at once. One picture per description, and Gemini decides by itself whether the subject is symmetric.",
   "notes_i18n": {
-    "en": "New icon for AutoSculpt Studio.",
-    "it": "Nuova icona per AutoSculpt Studio.",
-    "de": "Neues Symbol für AutoSculpt Studio.",
-    "fr": "Nouvelle icône pour AutoSculpt Studio.",
-    "es": "Nuevo icono para AutoSculpt Studio.",
-    "pt": "Novo ícone para o AutoSculpt Studio.",
-    "ja": "AutoSculpt Studio の新しいアイコン。"
+    "en": "Gemini is much faster: the prompt is written in a few seconds, and a picture that cannot be drawn tells you why at once. One picture per description, and Gemini decides by itself whether the subject is symmetric.",
+    "it": "Gemini molto più veloce: il prompt arriva in pochi secondi e, se un'immagine non si può disegnare, il motivo compare subito. Una sola immagine per descrizione, e Gemini decide da solo se il soggetto è simmetrico.",
+    "de": "Gemini ist viel schneller: Der Prompt kommt in wenigen Sekunden, und wenn ein Bild nicht gezeichnet werden kann, steht der Grund sofort da. Ein Bild pro Beschreibung, und Gemini entscheidet selbst, ob das Motiv symmetrisch ist.",
+    "fr": "Gemini est beaucoup plus rapide : le prompt arrive en quelques secondes et, si une image ne peut pas être dessinée, la raison s'affiche tout de suite. Une seule image par description, et Gemini décide seul si le sujet est symétrique.",
+    "es": "Gemini es mucho más rápido: el prompt llega en pocos segundos y, si una imagen no se puede dibujar, el motivo aparece enseguida. Una sola imagen por descripción, y Gemini decide solo si el sujeto es simétrico.",
+    "pt": "O Gemini ficou muito mais rápido: o prompt chega em poucos segundos e, se uma imagem não puder ser desenhada, o motivo aparece na hora. Uma imagem por descrição, e o Gemini decide sozinho se o objeto é simétrico.",
+    "ja": "Gemini が大幅に速くなりました。プロンプトは数秒で書かれ、画像を描けない場合はすぐに理由が表示されます。説明ごとに画像は1枚で、題材が左右対称かどうかは Gemini が判断します。"
   },
   "history": [
+    {
+      "date": "2026-11-26T18:11:17Z",
+      "version": "1.0.3",
+      "notes": {
+        "en": "Gemini is much faster: the prompt is written in a few seconds, and a picture that cannot be drawn tells you why at once. One picture per description, and Gemini decides by itself whether the subject is symmetric.",
+        "it": "Gemini molto più veloce: il prompt arriva in pochi secondi e, se un'immagine non si può disegnare, il motivo compare subito. Una sola immagine per descrizione, e Gemini decide da solo se il soggetto è simmetrico.",
+        "de": "Gemini ist viel schneller: Der Prompt kommt in wenigen Sekunden, und wenn ein Bild nicht gezeichnet werden kann, steht der Grund sofort da. Ein Bild pro Beschreibung, und Gemini entscheidet selbst, ob das Motiv symmetrisch ist.",
+        "fr": "Gemini est beaucoup plus rapide : le prompt arrive en quelques secondes et, si une image ne peut pas être dessinée, la raison s'affiche tout de suite. Une seule image par description, et Gemini décide seul si le sujet est symétrique.",
+        "es": "Gemini es mucho más rápido: el prompt llega en pocos segundos y, si una imagen no se puede dibujar, el motivo aparece enseguida. Una sola imagen por descripción, y Gemini decide solo si el sujeto es simétrico.",
+        "pt": "O Gemini ficou muito mais rápido: o prompt chega em poucos segundos e, se uma imagem não puder ser desenhada, o motivo aparece na hora. Uma imagem por descrição, e o Gemini decide sozinho se o objeto é simétrico.",
+        "ja": "Gemini が大幅に速くなりました。プロンプトは数秒で書かれ、画像を描けない場合はすぐに理由が表示されます。説明ごとに画像は1枚で、題材が左右対称かどうかは Gemini が判断します。"
+      }
+    },
     {
       "date": "2026-11-26T17:57:47Z",
       "version": "1.0.2",
@@ -53,22 +66,22 @@
     }
   ],
   "ui": {
-    "version": "1.0.2",
+    "version": "1.0.3",
     "files": [
       {
         "path": "AutoSculptStudio.html",
         "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/ui/AutoSculptStudio.html",
-        "sha256": "cf0db00c8b663e938ee552a38dd24dd029abf74f1a906fa0fb1dba6af06d1b27"
+        "sha256": "e3cf7bbf823c8ec65d9c23ab2142e64fbe423d70910f1091a3315918e22edd51"
       }
     ]
   },
   "app": {
-    "version": "1.0.1",
+    "version": "1.0.2",
     "files": [
       {
         "path": "main.py",
         "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/app/main.py",
-        "sha256": "b92cb97ed6812c9a7b084d90a55e2cab36a2b9833ab3a32d712bcb52164f53ea"
+        "sha256": "f9275f195667267bb58e8264d0687053d18362264952025ba0646f6c37fba8ed"
       }
     ]
   },
@@ -93,22 +106,22 @@
     {
       "id": "gemini",
       "name": "Google Gemini",
-      "version": "1.1.3",
+      "version": "1.1.4",
       "files": [
         {
           "path": "engine.json",
           "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/engines/gemini/engine.json",
-          "sha256": "8c25cd6667744bcfe048c190f62608becaf1c6d18b706614ceec92ce7fe3c6ce"
+          "sha256": "3b3a251afe55287fa1fabd34accc69f14924fc4b86a15d9eb24af212c6104d37"
         },
         {
           "path": "runner.py",
           "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/engines/gemini/runner.py",
-          "sha256": "55b5008d7f62e2c055024a89c8a099f75c6745a62c27e9843506bc4daf4325a2"
+          "sha256": "e91c9d16540a62289f6190225b491cc1427c3ecb7b2bc49e65042d94ac0ce483"
         },
         {
           "path": "prompts.json",
           "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/engines/gemini/prompts.json",
-          "sha256": "4c813f15aedd78a0326f059ae02d58929858f91c8b725cd3dbbbf813e5e4f0cc"
+          "sha256": "2751b13ce2fc65ea38cbe94a981a7f73cfc88d95905872cc7ea8738e3000cf43"
         }
       ]
     },

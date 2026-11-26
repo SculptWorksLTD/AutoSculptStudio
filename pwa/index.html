@@ -57,11 +57,6 @@ h2{font-size:15px;margin:4px 0 8px;color:var(--muted);font-weight:600}
     <textarea id="text"></textarea>
     <div class="photos" id="photos"></div>
     <div class="row">
-      <label class="ck"><input type="checkbox" id="sym" checked> <span id="symT"></span></label>
-      <span style="flex:1"></span>
-      <span id="countT" class="note"></span><select id="count"><option>2</option><option selected>4</option><option>1</option></select>
-    </div>
-    <div class="row">
       <label class="btn" for="cam" id="camT"></label><input type="file" id="cam" accept="image/*" multiple hidden>
       <button class="btn primary" id="send"></button>
     </div>
@@ -93,7 +88,7 @@ $('tag').textContent = T.tag;
 if (!K) { $('nolink').hidden = false; $('nolinkT').textContent = T.nolink; }
 else {
   $('main').hidden = false;
-  $('micT').textContent = T.mic; $('text').placeholder = T.text; $('symT').textContent = T.sym; $('countT').textContent = T.count;
+  $('micT').textContent = T.mic; $('text').placeholder = T.text;
   $('camT').textContent = T.cam; $('send').textContent = T.send; $('histT').textContent = T.hist;
 }
 const H = () => ({ 'X-Phone-Key': K });
@@ -150,10 +145,10 @@ $('cam') && ($('cam').onchange = async () => {
 async function send() {
   const text = $('text').value.trim();
   if (!text && !AUDIO && !PHOTOS.length) { msg(T.empty, true); return; }
-  const id = newId(), sym = $('sym').checked ? 1 : 0, parts = [];
+  const id = newId(), sym = 0, parts = [];
   if (AUDIO) parts.push(['audio/wav', AUDIO.blob]);
   for (const p of PHOTOS) parts.push(['image/jpeg', p]);
-  parts.push(['application/json', new Blob([JSON.stringify({ text, sym: !!sym, count: +$('count').value })])]);
+  parts.push(['application/json', new Blob([JSON.stringify({ text })])]);
   $('send').disabled = true; msg(T.sending);
   try {
     for (let i = 0; i < parts.length; i++) {
