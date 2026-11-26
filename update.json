@@ -1,0 +1,141 @@
+{
+  "product": "AutoSculpt Studio",
+  "latest": "1.0.0",
+  "notes": "First version of AutoSculpt Studio: 3D models from a description, photos, the phone or the gallery, sent to AutoSculpt 3D with one click.",
+  "notes_i18n": {
+    "en": "First version of AutoSculpt Studio: 3D models from a description, photos, the phone or the gallery, sent to AutoSculpt 3D with one click.",
+    "it": "Prima versione di AutoSculpt Studio: modelli 3D da una descrizione, da foto, dal telefono o dalla galleria, mandati ad AutoSculpt 3D con un clic.",
+    "de": "Erste Version von AutoSculpt Studio: 3D-Modelle aus einer Beschreibung, aus Fotos, vom Handy oder aus der Galerie, mit einem Klick an AutoSculpt 3D gesendet.",
+    "fr": "Première version d'AutoSculpt Studio : modèles 3D à partir d'une description, de photos, du téléphone ou de la galerie, envoyés à AutoSculpt 3D en un clic.",
+    "es": "Primera versión de AutoSculpt Studio: modelos 3D a partir de una descripción, de fotos, del teléfono o de la galería, enviados a AutoSculpt 3D con un clic.",
+    "pt": "Primeira versão do AutoSculpt Studio: modelos 3D a partir de uma descrição, de fotos, do celular ou da galeria, enviados ao AutoSculpt 3D com um clique.",
+    "ja": "AutoSculpt Studio の最初のバージョン：説明、写真、スマートフォン、ギャラリーから 3D モデルを作り、ワンクリックで AutoSculpt 3D に送ります。"
+  },
+  "history": [
+    {
+      "date": "2026-11-26T16:18:01Z",
+      "version": "1.0.0",
+      "notes": {
+        "en": "First version of AutoSculpt Studio: 3D models from a description, photos, the phone or the gallery, sent to AutoSculpt 3D with one click.",
+        "it": "Prima versione di AutoSculpt Studio: modelli 3D da una descrizione, da foto, dal telefono o dalla galleria, mandati ad AutoSculpt 3D con un clic.",
+        "de": "Erste Version von AutoSculpt Studio: 3D-Modelle aus einer Beschreibung, aus Fotos, vom Handy oder aus der Galerie, mit einem Klick an AutoSculpt 3D gesendet.",
+        "fr": "Première version d'AutoSculpt Studio : modèles 3D à partir d'une description, de photos, du téléphone ou de la galerie, envoyés à AutoSculpt 3D en un clic.",
+        "es": "Primera versión de AutoSculpt Studio: modelos 3D a partir de una descripción, de fotos, del teléfono o de la galería, enviados a AutoSculpt 3D con un clic.",
+        "pt": "Primeira versão do AutoSculpt Studio: modelos 3D a partir de uma descrição, de fotos, do celular ou da galeria, enviados ao AutoSculpt 3D com um clique.",
+        "ja": "AutoSculpt Studio の最初のバージョン：説明、写真、スマートフォン、ギャラリーから 3D モデルを作り、ワンクリックで AutoSculpt 3D に送ります。"
+      }
+    }
+  ],
+  "ui": {
+    "version": "1.0.0",
+    "files": [
+      {
+        "path": "AutoSculptStudio.html",
+        "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/ui/AutoSculptStudio.html",
+        "sha256": "61e6425edc93f52abeec8b40365a6712dd4cc81554c3c4df334d648024241cd8"
+      }
+    ]
+  },
+  "app": {
+    "version": "1.0.0",
+    "files": [
+      {
+        "path": "main.py",
+        "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/app/main.py",
+        "sha256": "d2feadf8246df9d824da619856d909670b17c6f31e0559ce0f9b7fedd341c2b8"
+      }
+    ]
+  },
+  "engines": [
+    {
+      "id": "fal",
+      "name": "fal.ai (TRELLIS 2 · Hunyuan 3D · Rodin)",
+      "version": "1.0.0",
+      "files": [
+        {
+          "path": "engine.json",
+          "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/engines/fal/engine.json",
+          "sha256": "ef893db7e55f8bd8152a5a744b9de4a9ba637a3d3eeb19a771ca2a029b69a25d"
+        },
+        {
+          "path": "runner.py",
+          "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/engines/fal/runner.py",
+          "sha256": "bb5de0fc12a561f38712636de2be5462f620420595a9b49446e4b8faf46b87b4"
+        }
+      ]
+    },
+    {
+      "id": "gemini",
+      "name": "Google Gemini",
+      "version": "1.1.3",
+      "files": [
+        {
+          "path": "engine.json",
+          "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/engines/gemini/engine.json",
+          "sha256": "8c25cd6667744bcfe048c190f62608becaf1c6d18b706614ceec92ce7fe3c6ce"
+        },
+        {
+          "path": "runner.py",
+          "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/engines/gemini/runner.py",
+          "sha256": "55b5008d7f62e2c055024a89c8a099f75c6745a62c27e9843506bc4daf4325a2"
+        },
+        {
+          "path": "prompts.json",
+          "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/engines/gemini/prompts.json",
+          "sha256": "4c813f15aedd78a0326f059ae02d58929858f91c8b725cd3dbbbf813e5e4f0cc"
+        }
+      ]
+    },
+    {
+      "id": "meshy",
+      "name": "Meshy",
+      "version": "1.0.0",
+      "files": [
+        {
+          "path": "engine.json",
+          "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/engines/meshy/engine.json",
+          "sha256": "9778fd274ea323e62d8bfa3f59a785e25ffc81b3a99f38cc6d9303e4d102dd4a"
+        },
+        {
+          "path": "runner.py",
+          "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/engines/meshy/runner.py",
+          "sha256": "a9ca917b388e97cb755abd8ea5ea15318e47d29723c7000f4e1593327d5d5b7c"
+        }
+      ]
+    },
+    {
+      "id": "tripo",
+      "name": "Tripo",
+      "version": "1.0.2",
+      "files": [
+        {
+          "path": "engine.json",
+          "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/engines/tripo/engine.json",
+          "sha256": "b62cb2cf072d9f888c0f09d90686f9b434b7f44e66f464c897b7ff214ef69375"
+        },
+        {
+          "path": "runner.py",
+          "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/engines/tripo/runner.py",
+          "sha256": "efb20dd067781f32d09fcc35fa8f80133e5c554b7216f85578d9dd0b6bbbd409"
+        }
+      ]
+    },
+    {
+      "id": "triposg",
+      "name": "TripoSG",
+      "version": "1.0.5",
+      "files": [
+        {
+          "path": "engine.json",
+          "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/engines/triposg/engine.json",
+          "sha256": "11a423a812d8381e69bfc25656825b6d64cfe454f9eb548254ac15a32d4a4def"
+        },
+        {
+          "path": "runner.py",
+          "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/engines/triposg/runner.py",
+          "sha256": "0e3ad330f4ad6b847fbe2b5e74732b0f4174d9a8ff2ead1b5b06fc5df073e2c8"
+        }
+      ]
+    }
+  ]
+}

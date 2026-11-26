@@ -1,0 +1,2462 @@
+# AutoSculpt Studio - (c) 2026 Enrico Migliorati. All rights reserved.
+import argparse
+import base64
+import gzip
+import hashlib
+import io
+import json
+import mimetypes
+import os
+import platform
+import re
+import secrets
+import shutil
+import subprocess
+import sys
+import tempfile
+import threading
+import time
+import traceback
+import urllib.error
+import urllib.parse
+import urllib.request
+import zipfile
+import uuid
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+APP_NAME = 'AutoSculpt Studio'
+BUNDLE_APP = Path(__file__).resolve().parent
+RESOURCES = Path(os.environ.get('AUTOSCULPT_BUNDLE', BUNDLE_APP))
+PAGE = 'AutoSculptStudio.html'
+VERSION = (BUNDLE_APP / 'VERSION').read_text().strip() if (BUNDLE_APP / 'VERSION').exists() else '0.0.0'
+IS_WIN, IS_MAC = (sys.platform == 'win32', sys.platform == 'darwin')
+
+def default_support():
+    if IS_WIN:
+        return Path(os.environ.get('APPDATA', Path.home() / 'AppData' / 'Roaming')) / 'AutoSculptStudio'
+    if IS_MAC:
+        return Path.home() / 'Library' / 'Application Support' / 'AutoSculptStudio'
+    return Path(os.environ.get('XDG_DATA_HOME', Path.home() / '.local' / 'share')) / 'AutoSculptStudio'
+SUPPORT = Path(os.environ.get('AUTOSCULPT_HOME', default_support()))
+for sub in ('engines', 'jobs', 'logs', 'ui', 'app', 'updates'):
+    (SUPPORT / sub).mkdir(parents=True, exist_ok=True)
+LOG = SUPPORT / 'logs' / 'studio.log'
+SETTINGS_FILE = SUPPORT / 'settings.json'
+TOKEN = secrets.token_urlsafe(24)
+BASE_PY = os.environ.get('AUTOSCULPT_PYTHON', sys.executable)
+if IS_WIN and 'AUTOSCULPT_PYTHON' not in os.environ:
+    _console = Path(sys.executable).with_name('python.exe')
+    if _console.exists():
+        BASE_PY = str(_console)
+NO_WINDOW = {'creationflags': 134217728} if IS_WIN else {}
+
+def clean_env(extra=None):
+    env = {k: v for k, v in os.environ.items() if k not in ('PYTHONHOME', 'PYTHONPATH', '__PYVENV_LAUNCHER__')}
+    env.update(extra or {})
+    return env
+
+def documents_dir():
+    if IS_WIN:
+        try:
+            import ctypes
+            buf = ctypes.create_unicode_buffer(260)
+            if ctypes.windll.shell32.SHGetFolderPathW(None, 5, None, 0, buf) == 0 and buf.value:
+                return Path(buf.value)
+        except Exception:
+            pass
+    return Path.home() / 'Documents'
+UPDATE_URLS = ['https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/update.json']
+AUTOSCULPT_CHANNEL = 'https://raw.githubusercontent.com/SculptWorksLTD/AutoSculpt3D/main'
+DEFAULT_SETTINGS = {'auto_check': True, 'last_check': 0}
+
+def log(*parts):
+    line = time.strftime('%Y-%m-%d %H:%M:%S ') + ' '.join((str(p) for p in parts))
+    try:
+        with open(LOG, 'a', encoding='utf-8') as fh:
+            fh.write(line + '\n')
+        if LOG.stat().st_size > 5000000:
+            LOG.replace(LOG.with_suffix('.old.log'))
+    except Exception:
+        pass
+    print(line, flush=True)
+
+def vtuple(v):
+    out = []
+    for p in str(v).split('.'):
+        num = ''.join((ch for ch in p if ch.isdigit()))
+        out.append(int(num) if num else 0)
+    return tuple(out + [0] * (4 - len(out)))
+
+def load_settings():
+    try:
+        d = {**DEFAULT_SETTINGS, **json.loads(SETTINGS_FILE.read_text())}
+        d.pop('auto_diary', None)
+        return d
+    except Exception:
+        return dict(DEFAULT_SETTINGS)
+
+def save_settings(s):
+    SETTINGS_FILE.write_text(json.dumps(s, indent=2))
+
+def ui_dir():
+    bundled = RESOURCES / 'ui'
+    upd = SUPPORT / 'ui'
+    try:
+        if (upd / PAGE).exists() and vtuple((upd / 'VERSION').read_text()) > vtuple((bundled / 'VERSION').read_text()):
+            return (upd, bundled)
+    except Exception:
+        pass
+    return (bundled, bundled)
+
+def ui_version():
+    d, _ = ui_dir()
+    try:
+        return (d / 'VERSION').read_text().strip()
+    except Exception:
+        return VERSION
+
+class UserError(RuntimeError):
+
+    def __init__(self, text, **values):
+        self.text, self.values = (text, values)
+        super().__init__(text.format(**values) if values else text)
+JOBS = {}
+JOBS_LOCK = threading.Lock()
+
+class Job:
+
+    def __init__(self, kind, title):
+        self.id = uuid.uuid4().hex[:12]
+        self.kind, self.title = (kind, title)
+        self.state, self.progress, self.message, self.values = ('running', 0.0, 'In progress', {})
+        self.result, self.error, self.error_values, self.proc, self.cancelled = (None, None, {}, None, False)
+        self.log = []
+        self.dir = SUPPORT / 'jobs' / self.id
+        self.dir.mkdir(parents=True, exist_ok=True)
+        with JOBS_LOCK:
+            JOBS[self.id] = self
+
+    def update(self, progress=None, message=None, **values):
+        if progress is not None:
+            self.progress = max(0.0, min(1.0, float(progress)))
+        if message:
+            self.message, self.values = (message, values)
+            self.add_log(message.format(**values) if values else message)
+
+    def add_log(self, line):
+        self.log.append(line)
+        if len(self.log) > 400:
+            self.log = self.log[-400:]
+
+    def as_dict(self):
+        return {'id': self.id, 'kind': self.kind, 'title': self.title, 'state': self.state, 'progress': round(self.progress, 3), 'message': self.message, 'message_values': self.values, 'error': self.error, 'error_values': self.error_values, 'result': self.result, 'log': self.log[-12:]}
+
+def run_job(job, fn):
+
+    def wrap():
+        try:
+            fn(job)
+            if job.cancelled:
+                job.state, job.message, job.values = ('cancelled', 'Cancelled', {})
+            elif job.state == 'running':
+                job.state = 'done'
+        except Exception as exc:
+            log('Job failed', job.kind, traceback.format_exc())
+            if job.cancelled:
+                job.state, job.message, job.values = ('cancelled', 'Cancelled', {})
+                return
+            text, values = (exc.text, exc.values) if isinstance(exc, UserError) else ('{detail}', {'detail': str(exc)})
+            job.state, job.error, job.error_values = ('error', text, values)
+            job.message, job.values = (text, values)
+    threading.Thread(target=wrap, daemon=True).start()
+    return job
+
+def stream(job, cmd, env=None, cwd=None, on_line=None):
+    log('Running:', ' '.join((str(c) for c in cmd)))
+    p = subprocess.Popen([str(c) for c in cmd], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1, env=clean_env({'PYTHONUNBUFFERED': '1', 'PYTHONIOENCODING': 'utf-8', **(env or {})}), cwd=cwd, encoding='utf-8', errors='replace', **NO_WINDOW)
+    job.proc = p
+    for raw in p.stdout:
+        line = raw.rstrip()
+        for tok in ('PROGRESS ', 'IMAGE ', 'RESULT ', 'ERROR '):
+            k = line.find(tok)
+            if k > 0 and '%|' in line[:k]:
+                job.add_log(line[:k].rstrip())
+                line = line[k:]
+                break
+        if not line:
+            continue
+        job.add_log(line)
+        if not line.startswith(('PROGRESS', 'IMAGE')) and (not (line.startswith('  ') and len(line) > 300)):
+            log('  |', line[:500])
+        if on_line:
+            on_line(line)
+        if job.cancelled:
+            p.terminate()
+    p.wait()
+    job.proc = None
+    if job.cancelled:
+        raise UserError('Cancelled')
+    return p.returncode
+
+def fix_certificates():
+    if os.environ.get('SSL_CERT_FILE') or os.name == 'nt':
+        return
+    try:
+        import ssl
+        p = ssl.get_default_verify_paths()
+        if p.cafile and os.path.exists(p.cafile) or (p.capath and os.path.isdir(p.capath) and os.listdir(p.capath)):
+            return
+    except Exception:
+        return
+    for f in ('/etc/ssl/cert.pem', '/private/etc/ssl/cert.pem', '/etc/ssl/certs/ca-certificates.crt'):
+        if os.path.exists(f):
+            os.environ['SSL_CERT_FILE'] = f
+            return
+fix_certificates()
+_SSL = None
+
+def ssl_context():
+    global _SSL
+    if _SSL is None:
+        import ssl
+        ctx = ssl.create_default_context()
+        try:
+            import certifi
+            ctx.load_verify_locations(certifi.where())
+        except Exception:
+            p = ssl.get_default_verify_paths()
+            has = p.cafile and os.path.exists(p.cafile) or (p.capath and os.path.isdir(p.capath) and os.listdir(p.capath))
+            if not has and (not os.environ.get('SSL_CERT_FILE')):
+                for f in ('/etc/ssl/cert.pem', '/private/etc/ssl/cert.pem', '/etc/ssl/certs/ca-certificates.crt'):
+                    if os.path.exists(f):
+                        ctx.load_verify_locations(f)
+                        break
+        _SSL = ctx
+    return _SSL
+
+def urlopen(req, timeout):
+    if isinstance(req, str):
+        req = urllib.request.Request(req, headers={'User-Agent': 'AutoSculptStudio/' + VERSION})
+    if req.full_url.startswith('https://'):
+        return urllib.request.urlopen(req, timeout=timeout, context=ssl_context())
+    return urllib.request.urlopen(req, timeout=timeout)
+
+def download(url, dest, job=None, p0=0.0, p1=1.0, label='Downloading', tries=3):
+    for attempt in range(tries):
+        try:
+            return _download(url, dest, job, p0, p1, label)
+        except Exception:
+            if job and job.cancelled or attempt == tries - 1:
+                raise
+            if job:
+                job.update(None, 'Connection lost, retrying ({n}/{total})', n=attempt + 2, total=tries)
+            time.sleep(3 * (attempt + 1))
+
+def _download(url, dest, job=None, p0=0.0, p1=1.0, label='Downloading'):
+    req = urllib.request.Request(url, headers={'User-Agent': 'AutoSculptStudio/' + VERSION})
+    with urlopen(req, 60) as r, open(dest, 'wb') as out:
+        total = int(r.headers.get('Content-Length') or 0)
+        got = 0
+        while True:
+            chunk = r.read(1 << 20)
+            if not chunk:
+                break
+            out.write(chunk)
+            got += len(chunk)
+            if job:
+                if job.cancelled:
+                    raise UserError('Cancelled')
+                frac = got / total if total else 0
+                if total:
+                    job.update(p0 + (p1 - p0) * frac, '{what}: {got} MB of {total} MB', what=label, got=round(got / 1000000.0), total=round(total / 1000000.0))
+                else:
+                    job.update(p0, '{what}: {got} MB', what=label, got=round(got / 1000000.0))
+    return dest
+
+def sha256(path):
+    h = hashlib.sha256()
+    with open(path, 'rb') as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b''):
+            h.update(chunk)
+    return h.hexdigest()
+RETIRED_ENGINES = {'triposr', 'ssd1b', 'fluxlocal', 'fluxcuda', 'mvadapter', 'whisper', 'falflux', 'falviews', 'falwhisper'}
+APPLE_CHIP = IS_MAC and platform.machine() == 'arm64'
+_NVIDIA = []
+
+def nvidia_card():
+    if not _NVIDIA:
+        _NVIDIA.append(IS_WIN and has_nvidia())
+    return _NVIDIA[0]
+
+def platform_allows(spec):
+    if os.environ.get('AUTOSCULPT_TEST_ANY_PLATFORM') == '1':
+        return True
+    only, hide = (spec.get('only'), spec.get('hide_on'))
+    if only == 'apple_chip' and (not APPLE_CHIP) or (only == 'nvidia' and (not nvidia_card())):
+        return False
+    if hide == 'apple_chip' and APPLE_CHIP or (hide == 'apple_chip_or_nvidia' and (APPLE_CHIP or nvidia_card())):
+        return False
+    return True
+
+def remove_retired_engines():
+    for eid in RETIRED_ENGINES:
+        for d in (SUPPORT / 'engines' / eid,):
+            if d.exists():
+                shutil.rmtree(d, ignore_errors=True)
+                log('Removed the retired engine', eid)
+    keys = load_keys()
+    if any((k.startswith('lib:') for k in keys)):
+        for k in [k for k in keys if k.startswith('lib:')]:
+            save_key(k, '')
+        log('Removed the keys of the model libraries')
+
+def engine_specs(any_platform=False):
+    specs = {}
+    for base in (RESOURCES / 'engines', SUPPORT / 'engines'):
+        if not base.exists():
+            continue
+        for d in base.iterdir():
+            f = d / 'engine.json'
+            if f.exists():
+                try:
+                    spec = json.loads(f.read_text())
+                    if spec.get('id') in RETIRED_ENGINES or not (any_platform or platform_allows(spec)):
+                        continue
+                    spec['_dir'] = str(d)
+                    if spec['id'] not in specs or vtuple(spec.get('version')) >= vtuple(specs[spec['id']].get('version')):
+                        specs[spec['id']] = spec
+                except Exception:
+                    log('Invalid engine.json:', f)
+    return specs
+KEYS_FILE = SUPPORT / 'keys.json'
+
+def load_keys():
+    try:
+        return json.loads(KEYS_FILE.read_text())
+    except Exception:
+        return {}
+
+def save_key(eid, key):
+    keys = load_keys()
+    if key:
+        keys[eid] = key
+    else:
+        keys.pop(eid, None)
+    KEYS_FILE.write_text(json.dumps(keys))
+    try:
+        os.chmod(KEYS_FILE, 384)
+    except OSError:
+        pass
+QUIT = {'dirty': False, 'allow': False, 'win': None}
+GALLERY_URL = os.environ.get('AUTOSCULPT_GALLERY_URL', 'https://pub-6a60f5de67aa452fa66fa8d7cc451b99.r2.dev/gallery/v1')
+_gallery_index = [None]
+
+def gallery_get(rel, binary=True, timeout=40):
+    req = urllib.request.Request(GALLERY_URL + '/' + rel, headers={'User-Agent': f'AutoSculptStudio/{VERSION}'})
+    try:
+        with urlopen(req, timeout) as r:
+            data = r.read()
+    except urllib.error.HTTPError as e:
+        raise UserError('The model gallery replied {code}', code=e.code)
+    except Exception as e:
+        raise UserError('Cannot reach the model gallery: {error}', error=str(getattr(e, 'reason', e)))
+    return data if binary else json.loads(data)
+CHANNEL_BASE = os.environ.get('AUTOSCULPT_CHANNEL_URL', AUTOSCULPT_CHANNEL)
+GALLERY_DIR = SUPPORT / 'gallery'
+GALLERY_SYNC = {'state': 'idle', 'done': 0, 'total': 0, 'error': ''}
+_gallery_lock = threading.Lock()
+
+def channel_get(rel, timeout=60):
+    req = urllib.request.Request(CHANNEL_BASE + '/' + rel, headers={'User-Agent': f'AutoSculptStudio/{VERSION}'})
+    with urlopen(req, timeout) as r:
+        return r.read()
+
+def gallery_local_index():
+    f = GALLERY_DIR / 'index.json'
+    try:
+        return json.loads(f.read_text(encoding='utf-8')) if f.exists() else None
+    except Exception:
+        return None
+
+def gallery_sync(only_pack=None):
+    with _gallery_lock:
+        GALLERY_DIR.mkdir(parents=True, exist_ok=True)
+        done_f = GALLERY_DIR / 'packs.json'
+        try:
+            have = json.loads(done_f.read_text(encoding='utf-8')) if done_f.exists() else {}
+        except Exception:
+            have = {}
+        idx = None
+        try:
+            idx = json.loads(channel_get('gallery/index.json?t=' + str(int(time.time() // 3600)), 30))
+            if not isinstance(idx, dict) or not isinstance(idx.get('packs'), list) or (not isinstance(idx.get('models'), list)):
+                raise ValueError('not a gallery index')
+        except Exception as exc:
+            idx = gallery_local_index()
+            if not idx:
+                GALLERY_SYNC.update(error=str(getattr(exc, 'reason', exc)))
+                if only_pack is None:
+                    GALLERY_SYNC['state'] = 'error'
+                return False
+        packs = [p for p in idx['packs'] if only_pack is None or p.get('n') == only_pack]
+        GALLERY_SYNC.update(done=sum((1 for p in idx['packs'] if have.get(p['file']) == p['sha256'])), total=len(idx['packs']))
+        if only_pack is None:
+            GALLERY_SYNC.update(state='running', error='')
+        for p in packs:
+            if have.get(p['file']) == p['sha256']:
+                continue
+            if not re.match('^pack_[0-9]{1,3}\\.zip$', p.get('file', '')):
+                continue
+            try:
+                data = channel_get('gallery/' + p['file'], 600)
+                if hashlib.sha256(data).hexdigest() != p['sha256']:
+                    raise ValueError('checksum')
+                with zipfile.ZipFile(io.BytesIO(data)) as z:
+                    for name in z.namelist():
+                        m = re.match('^(models|thumbs)/([a-z0-9_@-]{1,120})\\.(obj\\.gz|jpg)$', name)
+                        if not m:
+                            continue
+                        out = GALLERY_DIR / m.group(1) / (m.group(2) + '.' + m.group(3))
+                        out.parent.mkdir(parents=True, exist_ok=True)
+                        tmp = out.with_name(out.name + '.part')
+                        tmp.write_bytes(z.read(name))
+                        tmp.replace(out)
+                have[p['file']] = p['sha256']
+                done_f.write_text(json.dumps(have), encoding='utf-8')
+                GALLERY_SYNC['done'] += 1
+            except Exception as exc:
+                log('gallery pack', p.get('file'), exc)
+                GALLERY_SYNC.update(error=str(getattr(exc, 'reason', exc)))
+                if only_pack is None:
+                    GALLERY_SYNC['state'] = 'error'
+                return False
+        keep = {m['id'] for m in idx['models']}
+        (GALLERY_DIR / 'index.json').write_text(json.dumps(idx), encoding='utf-8')
+        if only_pack is None:
+            for sub, ext in (('models', '.obj.gz'), ('thumbs', '.jpg')):
+                for f in (GALLERY_DIR / sub).glob('*' + ext) if (GALLERY_DIR / sub).exists() else []:
+                    if f.name[:-len(ext)] not in keep:
+                        f.unlink(missing_ok=True)
+            GALLERY_SYNC.update(state='done')
+            shutil.rmtree(SUPPORT / 'library' / 'gallery', ignore_errors=True)
+        return True
+_gallery_started = [False]
+
+def gallery_sync_later(delay=15):
+    if _gallery_started[0] and GALLERY_SYNC['state'] != 'error':
+        return
+    _gallery_started[0] = True
+    GALLERY_SYNC.update(state='running', error='')
+
+    def run():
+        time.sleep(delay)
+        try:
+            gallery_sync()
+        except Exception as exc:
+            log('gallery sync', exc)
+    threading.Thread(target=run, daemon=True).start()
+
+def gallery_index():
+    idx = gallery_local_index()
+    if idx:
+        if not _gallery_started[0] or GALLERY_SYNC['state'] == 'error':
+            gallery_sync_later(0)
+        out = dict(idx)
+        out['local'] = True
+        out['sync'] = dict(GALLERY_SYNC)
+        return out
+    if gallery_sync(only_pack=-1) and gallery_local_index():
+        return gallery_index()
+    if _gallery_index[0] is not None:
+        return _gallery_index[0]
+    cache = SUPPORT / 'library' / 'gallery'
+    cache.mkdir(parents=True, exist_ok=True)
+    try:
+        data = gallery_get('index.json?t=' + str(int(time.time() // 3600)), binary=False)
+        (cache / 'index.json').write_text(json.dumps(data), encoding='utf-8')
+    except UserError:
+        if not (cache / 'index.json').exists():
+            raise
+        data = json.loads((cache / 'index.json').read_text(encoding='utf-8'))
+    _gallery_index[0] = data
+    return data
+
+def gallery_model(cat, mid):
+    if not re.match('^[a-z0-9_]{1,40}$', cat or '') or not re.match('^[a-z0-9_@-]{1,120}$', mid or ''):
+        raise UserError('Unknown model')
+    idx = gallery_local_index()
+    if idx:
+        m = next((x for x in idx['models'] if x.get('id') == mid), None)
+        if not m:
+            raise UserError('Unknown model')
+        gz = GALLERY_DIR / 'models' / (mid + '.obj.gz')
+        if not gz.exists():
+            gallery_sync(only_pack=m.get('pack'))
+        if not gz.exists():
+            raise UserError('Cannot reach the model gallery: {error}', error=GALLERY_SYNC.get('error') or '?')
+        f = GALLERY_DIR / 'models' / (mid + '.obj')
+        if not f.exists() or f.stat().st_mtime < gz.stat().st_mtime:
+            tmp = f.with_name(f.name + '.part')
+            tmp.write_bytes(gzip.decompress(gz.read_bytes()))
+            tmp.replace(f)
+        return f
+    cache = SUPPORT / 'library' / 'gallery' / cat
+    cache.mkdir(parents=True, exist_ok=True)
+    f = cache / (mid + '.obj')
+    if not f.exists() or f.stat().st_size == 0:
+        raw = gzip.decompress(gallery_get(f'{cat}/{mid}.obj.gz'))
+        tmp = f.with_suffix('.part')
+        tmp.write_bytes(raw)
+        tmp.replace(f)
+    return f
+
+def folder_bytes(path):
+    total = 0
+    for root, _, files in os.walk(path):
+        for f in files:
+            try:
+                total += os.path.getsize(os.path.join(root, f))
+            except OSError:
+                pass
+    return total
+DISK_FOLDERS = {'jobs': 'jobs', 'hdri': 'hdri', 'library': 'library'}
+
+def disk_usage_report():
+    items = []
+    for eid, spec in engine_specs(any_platform=True).items():
+        if spec.get('type') == 'cloud':
+            continue
+        home = engine_home(eid)
+        size = folder_bytes(home) if home.exists() else 0
+        if size > 0:
+            items.append({'id': 'engine:' + eid, 'kind': 'engine', 'name': spec.get('name', eid), 'bytes': size})
+    for key, name in DISK_FOLDERS.items():
+        size = folder_bytes(SUPPORT / name) if (SUPPORT / name).exists() else 0
+        if size > 0:
+            items.append({'id': key, 'kind': key, 'name': key, 'bytes': size})
+    old = sum((folder_bytes(d) for d in (SUPPORT / 'updates').glob('*-previous'))) if (SUPPORT / 'updates').exists() else 0
+    if old > 0:
+        items.append({'id': 'updates', 'kind': 'updates', 'name': 'updates', 'bytes': old})
+    return {'items': items, 'total': sum((i['bytes'] for i in items)), 'free': shutil.disk_usage(SUPPORT).free}
+
+def disk_clean(ids):
+    freed = 0
+    specs = engine_specs(any_platform=True)
+    with JOBS_LOCK:
+        running = {j.id for j in JOBS.values() if getattr(j, 'state', '') in ('running', 'queued')}
+    for i in ids:
+        if i.startswith('engine:'):
+            eid = i[7:]
+            if eid not in specs or specs[eid].get('type') == 'cloud':
+                continue
+            home = engine_home(eid)
+            freed += folder_bytes(home) if home.exists() else 0
+            for sub in ('venv', 'weights', 'src'):
+                shutil.rmtree(home / sub, ignore_errors=True)
+            (home / 'installed.json').unlink(missing_ok=True)
+        elif i == 'jobs':
+            for d in (SUPPORT / 'jobs').iterdir() if (SUPPORT / 'jobs').exists() else []:
+                if d.name not in running:
+                    freed += folder_bytes(d)
+                    shutil.rmtree(d, ignore_errors=True)
+        elif i in DISK_FOLDERS:
+            d = SUPPORT / DISK_FOLDERS[i]
+            freed += folder_bytes(d) if d.exists() else 0
+            shutil.rmtree(d, ignore_errors=True)
+        elif i == 'updates':
+            for d in (SUPPORT / 'updates').glob('*-previous') if (SUPPORT / 'updates').exists() else []:
+                freed += folder_bytes(d)
+                shutil.rmtree(d, ignore_errors=True)
+    log('Disk cleaned:', ', '.join(ids), 'freed', freed)
+    return {'ok': True, 'freed': freed}
+
+def engine_home(eid):
+    return SUPPORT / 'engines' / eid
+
+def has_kind(spec, kind):
+    return kind in (spec.get('kinds') or [spec.get('kind', 'photo3d')])
+
+def engine_status(spec):
+    if spec.get('type') == 'cloud':
+        key = load_keys().get(spec.get('key_engine', spec['id']), '')
+        return {'id': spec['id'], 'name': spec['name'], 'type': 'cloud', 'kind': spec.get('kind', 'photo3d'), 'kinds': spec.get('kinds') or [spec.get('kind', 'photo3d')], 'key_engine': spec.get('key_engine'), 'version': spec.get('version'), 'order': spec.get('order', 50), 'description': spec.get('description'), 'license': spec.get('license'), 'price': spec.get('price'), 'minutes': spec.get('minutes'), 'key_url': spec.get('key_url'), 'key_hint': spec.get('key_hint'), 'max_images': spec.get('max_images', 1), 'options': spec.get('options', []), 'installed': bool(key), 'key_set': bool(key), 'key_end': key[-4:] if len(key) > 8 else '', 'update': False}
+    home = engine_home(spec['id'])
+    info = {}
+    try:
+        info = json.loads((home / 'installed.json').read_text())
+    except Exception:
+        pass
+    return {'id': spec['id'], 'name': spec['name'], 'version': spec.get('version'), 'description': spec.get('description'), 'license': spec.get('license'), 'download_gb': spec.get('download_gb'), 'minutes': spec.get('minutes'), 'options': spec.get('options', []), 'installed': bool(info), 'installed_version': info.get('version'), 'type': 'local', 'kind': spec.get('kind', 'photo3d'), 'kinds': spec.get('kinds') or [spec.get('kind', 'photo3d')], 'order': spec.get('order', 50), 'max_images': 1, 'update': bool(info) and vtuple(spec.get('install_version', spec.get('version'))) > vtuple(info.get('version'))}
+
+def copy_runner(spec, home):
+    src, dst = (Path(spec['_dir']) / spec['runner'], home / spec['runner'])
+    if src.resolve() != dst.resolve() and (not dst.exists() or src.read_bytes() != dst.read_bytes()):
+        shutil.copy2(src, dst)
+    return dst
+
+def engine_env(home):
+    return {'PYTORCH_ENABLE_MPS_FALLBACK': '1', 'HF_HOME': str(home / 'hf'), 'U2NET_HOME': str(home / 'u2net'), 'HF_HUB_DISABLE_TELEMETRY': '1'}
+
+def total_ram_gb():
+    try:
+        if IS_WIN:
+            import ctypes
+
+            class MS(ctypes.Structure):
+                _fields_ = [('dwLength', ctypes.c_ulong), ('dwMemoryLoad', ctypes.c_ulong), ('ullTotalPhys', ctypes.c_ulonglong), ('ullAvailPhys', ctypes.c_ulonglong), ('ullTotalPageFile', ctypes.c_ulonglong), ('ullAvailPageFile', ctypes.c_ulonglong), ('ullTotalVirtual', ctypes.c_ulonglong), ('ullAvailVirtual', ctypes.c_ulonglong), ('ullAvailExtendedVirtual', ctypes.c_ulonglong)]
+            m = MS()
+            m.dwLength = ctypes.sizeof(MS)
+            ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(m))
+            return round(m.ullTotalPhys / 2 ** 30)
+        return round(os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES') / 2 ** 30)
+    except Exception:
+        return 0
+
+def has_nvidia():
+    try:
+        return subprocess.run(['nvidia-smi', '-L'], capture_output=True, timeout=10, **NO_WINDOW).returncode == 0
+    except Exception:
+        return False
+
+def venv_python(home):
+    return home / 'venv' / ('Scripts/python.exe' if IS_WIN else 'bin/python')
+
+def install_engine(job, spec):
+    eid, home = (spec['id'], engine_home(spec['id']))
+    home.mkdir(parents=True, exist_ok=True)
+    py = venv_python(home)
+    steps = spec.get('steps', [])
+    n = len(steps) + 3
+    k = 0
+
+    def at(i, msg, **values):
+        job.update(i / n, msg, **values)
+
+    def watch_weights(i):
+        total = float(spec.get('download_gb') or 0)
+        stop = threading.Event()
+
+        def run():
+            while not stop.wait(3):
+                got = 0
+                for root, _, files in os.walk(home / 'weights'):
+                    for f in files:
+                        try:
+                            got += os.path.getsize(os.path.join(root, f))
+                        except OSError:
+                            pass
+                gb = got / 2 ** 30
+                if total > 0:
+                    job.progress = max(job.progress, min((i + min(gb / total, 0.99)) / n, 1.0))
+                job.message, job.values = ('Downloading the engine files ({got} of {gb} GB)', {'got': f'{gb:.1f}', 'gb': spec.get('download_gb', '?')})
+        threading.Thread(target=run, daemon=True).start()
+        return stop
+    at(k, "Preparing the engine's Python environment")
+    if not py.exists():
+        if stream(job, [BASE_PY, '-m', 'venv', home / 'venv']) != 0:
+            raise UserError('Cannot create the Python environment')
+    stream(job, [py, '-m', 'pip', 'install', '--upgrade', 'pip', 'setuptools', 'wheel', '--disable-pip-version-check'])
+    cons = home / 'constraints.txt'
+    cons.write_text('\n'.join(spec.get('constraints', [])) + '\n')
+    k += 1
+    for st in steps:
+        at(k, 'Installing {what}', what=st.get('label', 'libraries'))
+        options = st.get('alternatives') or [st.get('pkgs', [])]
+        if IS_WIN and st.get('win_nvidia') and has_nvidia():
+            options = [[*pk, *st['win_nvidia']] for pk in options] + options
+        ok = False
+        for pk in options:
+            rc = stream(job, [py, '-m', 'pip', 'install', '--disable-pip-version-check', '--prefer-binary', '-c', cons, *pk], on_line=lambda l: job.update(None, None))
+            if rc == 0:
+                ok = True
+                break
+            job.add_log('Variant failed, trying the next one')
+        if not ok:
+            raise UserError('Installation failed: {what}', what=st.get('label', ''))
+        k += 1
+    at(k, 'Downloading the engine code')
+    src = spec.get('source')
+    if src:
+        tmp = home / 'source.zip'
+        download(src['url'], tmp, job, k / n, (k + 0.5) / n, 'Engine code')
+        dest = home / 'src'
+        shutil.rmtree(dest, ignore_errors=True)
+        dest.mkdir()
+        with zipfile.ZipFile(tmp) as z:
+            for name in z.namelist():
+                parts = name.split('/', 1)
+                if len(parts) < 2 or not parts[1]:
+                    continue
+                rel = parts[1]
+                if src.get('subdir') and (not (rel == src['subdir'] or rel.startswith(src['subdir'] + '/'))):
+                    continue
+                target = dest / rel
+                if name.endswith('/'):
+                    target.mkdir(parents=True, exist_ok=True)
+                else:
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    with z.open(name) as fi, open(target, 'wb') as fo:
+                        shutil.copyfileobj(fi, fo)
+        tmp.unlink(missing_ok=True)
+    k += 1
+    w = spec.get('weights')
+    for ws in spec.get('weights_sets', []):
+        at(k, 'Downloading the model weights ({gb} GB in total)', gb=spec.get('download_gb', '?'))
+        dest = home / 'weights' / ws.get('subdir', '')
+        code = "import sys, time\nfrom huggingface_hub import hf_hub_download\nrepo, dest = sys.argv[1], sys.argv[2]\nfor i, f in enumerate(sys.argv[3:]):\n    print('FILE', i, f, flush=True)\n    for t in range(4):\n        try:\n            hf_hub_download(repo, f, local_dir=dest); break\n        except Exception as e:\n            print('RETRY', t + 1, e, flush=True)\n            if t == 3: raise\n            time.sleep(5 * (t + 1))\n"
+        stop = watch_weights(k)
+        try:
+            rc = stream(job, [py, '-c', code, ws['hf_repo'], dest, *ws['files']], env={'HF_HUB_DISABLE_TELEMETRY': '1', 'HF_HUB_ENABLE_HF_TRANSFER': '0'}, on_line=lambda l: job.add_log('Downloading ' + l.split(' ', 2)[-1]) if l.startswith('FILE') else None)
+        finally:
+            stop.set()
+        if rc != 0:
+            tail = ' / '.join(job.log[-3:])
+            raise UserError('Downloading the weights failed: {detail}', detail=tail or '-')
+    if w:
+        at(k, 'Downloading the model weights ({gb} GB in total)', gb=spec.get('download_gb', '?'))
+        code = "import sys\nfrom huggingface_hub import hf_hub_download\nrepo, dest = sys.argv[1], sys.argv[2]\nimport time\nfor i, f in enumerate(sys.argv[3:]):\n    print('FILE', i, f, flush=True)\n    for t in range(4):\n        try:\n            hf_hub_download(repo, f, local_dir=dest); break\n        except Exception as e:\n            print('RETRY', t + 1, e, flush=True)\n            if t == 3: raise\n            time.sleep(5 * (t + 1))\n"
+        stop = watch_weights(k)
+        try:
+            rc = stream(job, [py, '-c', code, w['hf_repo'], home / 'weights', *w['files']], env={'HF_HUB_DISABLE_TELEMETRY': '1', 'HF_HUB_ENABLE_HF_TRANSFER': '0'}, on_line=lambda l: job.add_log('Downloading ' + l.split(' ', 2)[-1]) if l.startswith('FILE') else None)
+        finally:
+            stop.set()
+        if rc != 0:
+            tail = ' / '.join(job.log[-3:])
+            raise UserError('Downloading the weights failed: {detail}', detail=tail or '-')
+    pre = spec.get('prefetch_hf', [])
+    if pre:
+        job.update(None, 'Downloading the helper models')
+        code = "import sys\nfrom huggingface_hub import snapshot_download\nfor r in sys.argv[1:]:\n    print('MODEL', r, flush=True)\n    snapshot_download(r, allow_patterns=['*.json', '*.txt'])\n"
+        if stream(job, [py, '-c', code, *pre], env=engine_env(home)) != 0:
+            job.add_log('Helper models not downloaded now: they will be downloaded with the first photo')
+    k += 1
+    copy_runner(spec, home)
+    (home / 'installed.json').write_text(json.dumps({'version': spec.get('version'), 'when': time.time()}))
+    job.update(1, 'Engine installed')
+    job.result = {'engine': eid}
+
+def run_text2image(job, spec, prompt, lang, count, options, reference=None):
+    out = job.dir / 'images'
+    pf = job.dir / 'prompt.txt'
+    pf.write_text(prompt, encoding='utf-8')
+    if spec.get('type') == 'cloud':
+        key = load_keys().get(spec.get('key_engine', spec['id']))
+        if not key:
+            raise UserError('No API key for {name}: add it in Tools → Photo → 3D engines', name=spec['name'])
+        py, env, runner = (BASE_PY, {'AUTOSCULPT_API_KEY': key}, Path(spec['_dir']) / spec['runner'])
+        cmd = [py, runner]
+    else:
+        home = engine_home(spec['id'])
+        py = venv_python(home)
+        if not py.exists() or not (home / 'installed.json').exists():
+            raise UserError('Engine not installed')
+        runner, env = (copy_runner(spec, home), engine_env(home))
+        cmd = [py, runner, '--weights', home / 'weights', '--src', home / 'src']
+    cmd += ['--prompt-file', pf, '--lang', lang or 'en', '--output-dir', out, '--count', str(count), '--work', job.dir]
+    if reference is not None:
+        ref = job.dir / 'reference.png'
+        ref.write_bytes(reference)
+        cmd += ['--image', ref]
+    for o in spec.get('options', []):
+        if o['id'] in options:
+            cmd += ['--' + o['id'], str(options[o['id']])]
+    errors, images = ([], [])
+
+    def on_line(line):
+        if line.startswith('IMAGE '):
+            images.append(Path(line[6:].strip()).name)
+            job.result = {'images': [f'/api/jobs/{job.id}/image/{n}' for n in images], 'partial': True}
+        else:
+            parse_runner_line(job, line, errors)
+    rc = stream(job, cmd, env=env, on_line=on_line)
+    if job.cancelled:
+        raise UserError('Cancelled')
+    found = sorted((p.name for p in out.glob('image*.png'))) if out.exists() else []
+    if rc != 0 or not found:
+        if errors and errors[-1][1]:
+            raise UserError(errors[-1][0], **errors[-1][1])
+        raise UserError('The engine stopped: {detail}', detail=errors[-1][0] if errors else '-')
+    job.result = {'images': [f'/api/jobs/{job.id}/image/{n}' for n in found]}
+
+def run_speech2text(job, spec, wav, lang):
+    out = job.dir / 'text.txt'
+    if spec.get('type') == 'cloud':
+        key = load_keys().get(spec.get('key_engine', spec['id']))
+        if not key:
+            raise UserError('No API key for {name}: add it in Tools → Photo → 3D engines', name=spec['name'])
+        cmd, env = ([BASE_PY, Path(spec['_dir']) / spec['runner']], {'AUTOSCULPT_API_KEY': key})
+    else:
+        home = engine_home(spec['id'])
+        py = venv_python(home)
+        if not py.exists() or not (home / 'installed.json').exists():
+            raise UserError('Engine not installed')
+        cmd, env = ([py, copy_runner(spec, home), '--weights', home / 'weights', '--src', home / 'src'], engine_env(home))
+    cmd += ['--audio', wav, '--lang', lang or '', '--output', out, '--work', job.dir]
+    errors = []
+    rc = stream(job, cmd, env=env, on_line=lambda l: parse_runner_line(job, l, errors))
+    if job.cancelled:
+        raise UserError('Cancelled')
+    if rc != 0 or not out.exists():
+        if errors:
+            raise UserError(errors[-1][0], **errors[-1][1])
+        raise UserError('The engine stopped: {detail}', detail='-')
+    job.result = {'text': out.read_text(encoding='utf-8').strip()}
+
+def run_text2text(job, spec, task, text, context, symmetric=False):
+    key = load_keys().get(spec.get('key_engine', spec['id']))
+    if not key:
+        raise UserError('No API key for {name}: add it in Tools → Engines and online services', name=spec['name'])
+    inp, ctx, out = (job.dir / 'input.txt', job.dir / 'context.json', job.dir / 'text.txt')
+    inp.write_text(text, encoding='utf-8')
+    cmd = [BASE_PY, Path(spec['_dir']) / spec['runner'], '--task', task, '--input-file', inp, '--output', out, '--work', job.dir]
+    if context:
+        ctx.write_text(context, encoding='utf-8')
+        cmd += ['--context-file', ctx]
+    if symmetric:
+        cmd += ['--symmetric', '1']
+    errors = []
+    rc = stream(job, cmd, env={'AUTOSCULPT_API_KEY': key}, on_line=lambda l: parse_runner_line(job, l, errors))
+    if job.cancelled:
+        raise UserError('Cancelled')
+    if rc != 0 or not out.exists():
+        if errors:
+            raise UserError(errors[-1][0], **errors[-1][1])
+        raise UserError('The engine stopped: {detail}', detail='-')
+    job.result = {'text': out.read_text(encoding='utf-8').strip()}
+
+def microphone_allowed():
+    if not IS_MAC:
+        return True
+    import plistlib
+    for p in Path(sys.executable).resolve().parents:
+        if p.name == 'Contents' and (p / 'Info.plist').exists():
+            try:
+                return 'NSMicrophoneUsageDescription' in plistlib.loads((p / 'Info.plist').read_bytes())
+            except Exception:
+                return False
+    return False
+
+def parse_runner_line(job, line, errors):
+    if line.startswith('PROGRESS '):
+        parts = line.split(' ', 2)
+        text, values = (parts[2] if len(parts) > 2 else '', {})
+        if '\t' in text:
+            text, raw = text.split('\t', 1)
+            try:
+                values = json.loads(raw)
+            except ValueError:
+                values = {}
+        try:
+            job.update(float(parts[1]), text or None, **values)
+        except (ValueError, KeyError, IndexError):
+            pass
+    elif line.startswith('ERROR '):
+        text, values = (line[6:], {})
+        if '\t' in text:
+            text, raw = text.split('\t', 1)
+            try:
+                values = json.loads(raw)
+            except ValueError:
+                values = {}
+        errors.append((text, values))
+
+def run_engine(job, spec, images, options):
+    if spec.get('type') == 'cloud':
+        key = load_keys().get(spec.get('key_engine', spec['id']))
+        if not key:
+            raise UserError('No API key for {name}: add it in Tools → Photo → 3D engines', name=spec['name'])
+        py, env = (BASE_PY, {'AUTOSCULPT_API_KEY': key})
+        runner = Path(spec['_dir']) / spec['runner']
+        out = job.dir / 'result.glb'
+        cmd = [py, runner, '--output', out, '--work', job.dir]
+        for img in images[:spec.get('max_images', 1)]:
+            cmd += ['--input', img]
+    else:
+        home = engine_home(spec['id'])
+        py = venv_python(home)
+        if not py.exists() or not (home / 'installed.json').exists():
+            raise UserError('Engine not installed')
+        runner = copy_runner(spec, home)
+        env = engine_env(home)
+        out = job.dir / 'result.obj'
+        cmd = [py, runner, '--input', images[0], '--output', out, '--src', home / 'src', '--weights', home / 'weights', '--work', job.dir]
+    for o in spec.get('options', []):
+        if o['id'] in options:
+            v = options[o['id']]
+            cmd += ['--' + o['id'], ('1' if v else '0') if o['type'] == 'bool' else str(v)]
+    errors = []
+
+    def on_line(line):
+        if line.startswith('PROGRESS '):
+            parts = line.split(' ', 2)
+            text, values = (parts[2] if len(parts) > 2 else '', {})
+            if '\t' in text:
+                text, raw = text.split('\t', 1)
+                try:
+                    values = json.loads(raw)
+                except ValueError:
+                    values = {}
+            try:
+                job.update(float(parts[1]), text or None, **values)
+            except (ValueError, KeyError, IndexError):
+                pass
+        elif line.startswith('ERROR '):
+            text, values = (line[6:], {})
+            if '\t' in text:
+                text, raw = text.split('\t', 1)
+                try:
+                    values = json.loads(raw)
+                except ValueError:
+                    values = {}
+            errors.append((text, values))
+    rc = stream(job, cmd, env=env, on_line=on_line)
+    if job.cancelled:
+        raise UserError('Cancelled')
+    if rc != 0 or not out.exists():
+        if errors and errors[-1][1]:
+            raise UserError(errors[-1][0], **errors[-1][1])
+        tail = [l for l in job.log[-6:] if not l.startswith(('PROGRESS', 'ERROR'))]
+        detail = (errors[-1][0] if errors else '-') + (' | ' + ' / '.join(tail[-3:]) if tail else '')
+        raise UserError('The engine stopped: {detail}', detail=detail)
+    job.result = {'url': f'/api/jobs/{job.id}/result', 'name': out.name}
+PH_API = 'https://api.polyhaven.com'
+_PH_CACHE = {}
+
+def polyhaven(path):
+    hit = _PH_CACHE.get(path)
+    if hit and time.time() - hit[0] < 6 * 3600:
+        return hit[1]
+    req = urllib.request.Request(PH_API + path, headers={'User-Agent': f'AutoSculptStudio/{VERSION}'})
+    with urlopen(req, 30) as r:
+        data = json.loads(r.read())
+    _PH_CACHE[path] = (time.time(), data)
+    return data
+
+def hdri_list(category):
+    data = polyhaven('/assets?type=hdris&categories=' + urllib.parse.quote(category or 'outdoor'))
+    items = [{'id': k, 'name': v.get('name', k), 'n': v.get('download_count', 0), 'thumb': v.get('thumbnail_url') or f'https://cdn.polyhaven.com/asset_img/thumbs/{k}.png?width=320&height=160'} for k, v in data.items() if isinstance(v, dict)]
+    return sorted(items, key=lambda a: -a['n'])
+
+def hdri_file(hid, res):
+    if not re.fullmatch('[a-z0-9_]{1,80}', hid or '') or res not in ('1k', '2k', '4k', 'jpg'):
+        raise UserError('Invalid landscape')
+    folder = SUPPORT / 'hdri'
+    folder.mkdir(parents=True, exist_ok=True)
+    f = folder / (f'{hid}_tonemapped.jpg' if res == 'jpg' else f'{hid}_{res}.hdr')
+    if f.exists() and f.stat().st_size > 10000:
+        return f
+    files = polyhaven('/files/' + hid)
+    info = files['tonemapped'] if res == 'jpg' else files['hdri'][res]['hdr']
+    tmp = f.with_suffix('.part')
+    req = urllib.request.Request(info['url'], headers={'User-Agent': f'AutoSculptStudio/{VERSION}'})
+    h = hashlib.md5()
+    with urlopen(req, 120) as r, open(tmp, 'wb') as out:
+        while True:
+            chunk = r.read(1 << 20)
+            if not chunk:
+                break
+            h.update(chunk)
+            out.write(chunk)
+    if info.get('md5') and h.hexdigest() != info['md5']:
+        tmp.unlink(missing_ok=True)
+        raise UserError('Corrupted file, update blocked: {path}', path=f.name)
+    tmp.replace(f)
+    return f
+MENU_FILE = SUPPORT / 'menu.json'
+WEBSTATE_FILE = SUPPORT / 'webstate.json'
+WEBSTATE_LOCK = threading.Lock()
+PREFERRED_PORTS = range(47835, 47845)
+
+def webstate_read():
+    try:
+        data = json.loads(WEBSTATE_FILE.read_text(encoding='utf-8'))
+        return {k: v for k, v in data.items() if isinstance(k, str) and k.startswith('autosculpt.') and isinstance(v, str)}
+    except Exception:
+        return {}
+
+def webstate_update(changes):
+    with WEBSTATE_LOCK:
+        data = webstate_read()
+        for k, v in changes.items():
+            if not (isinstance(k, str) and k.startswith('autosculpt.') and (len(k) < 100)):
+                continue
+            if v is None:
+                data.pop(k, None)
+            elif isinstance(v, str):
+                data[k] = v
+        if len(json.dumps(data)) > 20000000:
+            raise UserError('The saved preferences are too large')
+        tmp = WEBSTATE_FILE.with_suffix('.tmp')
+        tmp.write_text(json.dumps(data, ensure_ascii=False), encoding='utf-8')
+        os.replace(tmp, WEBSTATE_FILE)
+
+def webstate_script():
+    state = json.dumps(webstate_read(), ensure_ascii=False).replace('</', '<\\/')
+    token = json.dumps(TOKEN)
+    return '<script>(function(){var S=' + state + ',T=' + token + ";try{for(var k in S){if(localStorage.getItem(k)===null)localStorage.setItem(k,S[k]);}}catch(e){}var q={},t=null;function flush(){var b=JSON.stringify(q);q={};t=null;try{fetch('/api/webstate',{method:'POST',headers:{'X-AS-Token':T,'Content-Type':'application/json'},body:b,keepalive:b.length<60000});}catch(e){}}function note(st,k,v){if(st===window.localStorage&&/^autosculpt\\./.test(k)){q[k]=v;if(!t)t=setTimeout(flush,250);}}var P=Storage.prototype,set=P.setItem,rem=P.removeItem;P.setItem=function(k,v){set.call(this,k,v);note(this,k,String(v));};P.removeItem=function(k){rem.call(this,k);note(this,k,null);};window.addEventListener('pagehide',function(){if(t){clearTimeout(t);flush();}});})();</script>"
+NATIVE_MENU = False
+
+def native_menu(bridge):
+    try:
+        spec = json.loads(MENU_FILE.read_text(encoding='utf-8'))
+        from webview.menu import Menu, MenuAction, MenuSeparator
+    except Exception:
+        return []
+
+    def action(mi, label):
+        js = f'window.AS_MENU && window.AS_MENU({int(mi)}, {json.dumps(label)})'
+
+        def run():
+            threading.Thread(target=lambda: bridge._win and bridge._win.evaluate_js(js), daemon=True).start()
+        return run
+    menus = []
+    try:
+        for mi, m in enumerate(spec.get('menus', [])[:10]):
+            items = []
+            for it in m.get('items', [])[:60]:
+                if it is None:
+                    if items and (not isinstance(items[-1], MenuSeparator)):
+                        items.append(MenuSeparator())
+                elif isinstance(it, dict) and it.get('label'):
+                    items.append(MenuAction(str(it['label'])[:100], action(mi, str(it['label']))))
+            while items and isinstance(items[-1], MenuSeparator):
+                items.pop()
+            if items:
+                menus.append(Menu(str(m.get('label', ''))[:40], items))
+    except Exception:
+        log('Native menu not built:', traceback.format_exc())
+        return []
+    return menus
+
+def product_version():
+    return max((VERSION, ui_version()), key=vtuple)
+SERVICE_URLS = [u.rsplit('/', 1)[0] + '/service.json' for u in UPDATE_URLS]
+REPORT_TEXT_MAX, REPORT_DIARY_MAX, REPORT_CONTEXT_MAX = (8000, 400000, 20000)
+_service = {'at': 0.0, 'data': {}}
+
+def service_config(wait=True):
+    test = os.environ.get('AUTOSCULPT_REPORT_URL')
+    if test:
+        return {'report_url': test}
+    cache = SUPPORT / 'service.json'
+    if time.time() - _service['at'] < 6 * 3600:
+        return _service['data']
+    data = None
+    if wait:
+        for url in SERVICE_URLS:
+            try:
+                req = urllib.request.Request(url + '?t=' + str(int(time.time())), headers={'User-Agent': 'AutoSculptStudio/' + VERSION, 'Cache-Control': 'no-cache'})
+                with urlopen(req, 12) as r:
+                    got = json.loads(r.read().decode('utf-8'))
+                if isinstance(got, dict):
+                    data = got
+                    break
+            except Exception:
+                continue
+    if data is not None:
+        _service.update(at=time.time(), data=data)
+        try:
+            cache.write_text(json.dumps(data), encoding='utf-8')
+        except OSError:
+            pass
+        return data
+    try:
+        got = json.loads(cache.read_text(encoding='utf-8'))
+        return got if isinstance(got, dict) else {}
+    except Exception:
+        return {}
+
+def report_url(wait=True):
+    url = str(service_config(wait).get('report_url') or '')
+    return url if url.startswith('https://') or (os.environ.get('AUTOSCULPT_REPORT_URL') and url.startswith('http://127.0.0.1')) else ''
+
+def anonymize(text):
+    out = str(text)
+    home = str(Path.home())
+    names = set()
+    for var in ('USER', 'USERNAME', 'LOGNAME'):
+        if os.environ.get(var):
+            names.add(os.environ[var])
+    try:
+        import getpass
+        names.add(getpass.getuser())
+    except Exception:
+        pass
+    if len(Path(home).name) >= 3:
+        names.add(Path(home).name)
+    hosts = {platform.node(), platform.node().split('.')[0], os.environ.get('COMPUTERNAME', '')}
+    for h in (home, home.replace('\\', '/'), home.replace('\\', '\\\\')):
+        if len(h) > 3:
+            out = out.replace(h, '~')
+    for n in sorted(names, key=len, reverse=True):
+        if len(n) >= 3:
+            out = re.sub('(?<![A-Za-z0-9])' + re.escape(n) + '(?![A-Za-z0-9])', '<user>', out)
+    for h in sorted(hosts, key=len, reverse=True):
+        if len(h) >= 3 and h.lower() not in ('localhost',):
+            out = out.replace(h, '<pc>')
+    out = re.sub('[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}', '<email>', out)
+    out = re.sub('\\b(?:[0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}\\b', '<mac>', out)
+    out = re.sub('\\b(?!127\\.|0\\.0\\.0\\.0)(?:\\d{1,3}\\.){3}\\d{1,3}\\b', '<ip>', out)
+    out = re.sub('(token=)[A-Za-z0-9_\\-]+', '\\1<…>', out)
+    return out
+
+def report_diary(which):
+    if which not in ('last', 'week'):
+        return ''
+    try:
+        lines = LOG.read_text(encoding='utf-8', errors='replace').splitlines()
+    except OSError:
+        return ''
+    if which == 'last':
+        start = 0
+        for i, ln in enumerate(lines):
+            if f' {APP_NAME} ' in ln[:60] and ' interface ' in ln:
+                start = i
+        lines = lines[start:]
+    else:
+        since = time.strftime('%Y-%m-%d', time.localtime(time.time() - 7 * 86400))
+        lines = [ln for ln in lines if ln[:10] >= since or not re.match('\\d{4}-\\d\\d-\\d\\d ', ln)]
+    text = anonymize('\n'.join(lines))
+    if len(text) > REPORT_DIARY_MAX:
+        text = '… (the beginning is left out)\n' + text[-REPORT_DIARY_MAX:]
+    return text
+
+def build_report(b):
+    kind = 'idea' if b.get('kind') == 'idea' else 'bug'
+    text = str(b.get('text') or '').strip()[:REPORT_TEXT_MAX]
+    if not text:
+        raise UserError('Write a few words before sending')
+    diary = report_diary(b.get('diary'))
+    context = anonymize(str(b.get('context') or '')[:REPORT_CONTEXT_MAX]).strip()
+    if context:
+        diary = '--- what was open ---\n' + context + ('\n\n--- diary ---\n' + diary if diary else '')
+    system = {'darwin': 'macOS', 'win32': 'Windows'}.get(sys.platform, 'Linux')
+    return {'app': APP_NAME, 'kind': kind, 'text': text, 'contact': str(b.get('contact') or '').strip()[:120], 'lang': str(b.get('lang') or '')[:5], 'version': product_version(), 'os': system + ' ' + platform.release()[:12], 'arch': platform.machine()[:12], 'diary': diary}
+
+def send_report(b):
+    payload = build_report(b)
+    if b.get('preview'):
+        return {'payload': payload}
+    url = report_url()
+    if not url:
+        raise UserError('The report service is not available yet')
+    req = urllib.request.Request(url, data=json.dumps(payload).encode('utf-8'), method='POST', headers={'Content-Type': 'application/json', 'User-Agent': 'AutoSculptStudio/' + VERSION})
+    try:
+        with urlopen(req, 30) as r:
+            got = json.loads(r.read().decode('utf-8'))
+    except urllib.error.HTTPError as exc:
+        detail = ''
+        try:
+            detail = str(json.loads(exc.read().decode('utf-8')).get('error') or '')
+        except Exception:
+            pass
+        log('Report not sent:', exc.code, detail)
+        if exc.code == 429:
+            raise UserError('Too many reports in a short time: try again later')
+        raise UserError('The report service is not responding ({detail})', detail=detail or str(exc.code))
+    except Exception as exc:
+        log('Report not sent:', repr(exc))
+        raise UserError('The report service is not responding ({detail})', detail=str(getattr(exc, 'reason', exc)))
+    log('Report sent:', payload['kind'], 'reference', got.get('id'))
+    return {'id': str(got.get('id') or '')}
+
+def fetch_manifest():
+    test = os.environ.get('AUTOSCULPT_UPDATE_URL')
+    last = None
+    for url in [test] if test else UPDATE_URLS:
+        if url.startswith('https://'):
+            url += ('&' if '?' in url else '?') + 't=' + str(int(time.time()))
+        req = urllib.request.Request(url, headers={'User-Agent': 'AutoSculptStudio/' + VERSION, 'Cache-Control': 'no-cache', 'Pragma': 'no-cache'})
+        try:
+            with urlopen(req, 20) as r:
+                m = json.loads(r.read().decode('utf-8'))
+            if isinstance(m, dict) and (m.get('ui') or m.get('app')):
+                return m
+            last = ValueError('not a manifest')
+        except Exception as exc:
+            last = exc
+            log('Update check failed:', url.split('?')[0], repr(exc))
+    raise UserError('The update server is not responding ({detail})', detail=str(getattr(last, 'reason', last)))
+
+def check_updates():
+    m = fetch_manifest()
+    s = load_settings()
+    s['last_check'] = time.time()
+    save_settings(s)
+    out = {'notes': m.get('notes', ''), 'notes_i18n': m.get('notes_i18n') or {}, 'history': m.get('history') or [], 'latest': m.get('latest'), 'current': product_version(), 'items': []}
+    cur = {'ui': ui_version(), 'app': VERSION}
+    for comp in ('ui', 'app'):
+        c = m.get(comp)
+        if c and vtuple(c.get('version')) > vtuple(cur[comp]):
+            out['items'].append({'component': comp, 'from': cur[comp], 'to': c['version']})
+    specs = engine_specs()
+    for e in m.get('engines', []):
+        if not platform_allows(e):
+            continue
+        old = specs.get(e['id'])
+        if not old or vtuple(e.get('version')) > vtuple(old.get('version')):
+            out['items'].append({'component': 'engine:' + e['id'], 'from': old.get('version') if old else None, 'to': e.get('version'), 'name': e.get('name', e['id'])})
+    out['available'] = bool(out['items'])
+    return out
+
+def apply_updates(job):
+    m = fetch_manifest()
+    info = check_updates()
+    todo = info['items']
+    if not todo:
+        job.update(1, 'No updates')
+        job.result = {'restart': False}
+        return
+    restart = False
+    for i, it in enumerate(todo):
+        comp = it['component']
+        job.update(i / len(todo), 'Updating {what}', what=comp)
+        if comp in ('ui', 'app'):
+            c = m[comp]
+            stage = Path(tempfile.mkdtemp(dir=SUPPORT / 'updates'))
+            for f in c['files']:
+                rel = f['path']
+                if '..' in Path(rel).parts or '\\' in rel or rel.startswith('/') or Path(rel).is_absolute() or (':' in rel):
+                    raise UserError('Invalid path in the manifest: {path}', path=rel)
+                dest = stage / rel
+                dest.parent.mkdir(parents=True, exist_ok=True)
+                download(f['url'], dest, job, i / len(todo), (i + 1) / len(todo), rel)
+                if sha256(dest) != f['sha256'].lower():
+                    raise UserError('Corrupted file, update blocked: {path}', path=rel)
+            (stage / 'VERSION').write_text(c['version'])
+            target = SUPPORT / comp
+            backup = SUPPORT / 'updates' / (comp + '-previous')
+            shutil.rmtree(backup, ignore_errors=True)
+            if target.exists():
+                target.rename(backup)
+            stage.rename(target)
+            restart = True
+        elif comp.startswith('engine:'):
+            e = next((x for x in m['engines'] if x['id'] == comp.split(':', 1)[1]))
+            d = SUPPORT / 'engines' / e['id']
+            d.mkdir(parents=True, exist_ok=True)
+            for f in e['files']:
+                rel = f['path']
+                if '..' in Path(rel).parts or '/' in rel or '\\' in rel or (':' in rel):
+                    raise UserError('Invalid path in the manifest: {path}', path=rel)
+                tmp = d / (rel + '.new')
+                download(f['url'], tmp, job, i / len(todo), (i + 1) / len(todo), rel)
+                if sha256(tmp) != f['sha256'].lower():
+                    tmp.unlink(missing_ok=True)
+                    raise UserError('Corrupted file, update blocked: {path}', path=rel)
+                tmp.replace(d / rel)
+    job.update(1, 'Update completed')
+    job.result = {'restart': restart}
+
+class Handler(BaseHTTPRequestHandler):
+    server_version = 'AutoSculptStudio'
+
+    def log_message(self, fmt, *args):
+        pass
+
+    def send_json(self, obj, code=200):
+        body = json.dumps(obj).encode()
+        self.send_response(code)
+        self.send_header('Content-Type', 'application/json; charset=utf-8')
+        self.send_header('Content-Length', str(len(body)))
+        self.send_header('Cache-Control', 'no-store')
+        self.end_headers()
+        self.wfile.write(body)
+
+    def send_file(self, path, ctype=None, extra=None):
+        data = Path(path).read_bytes()
+        self.send_response(200)
+        self.send_header('Content-Type', ctype or mimetypes.guess_type(str(path))[0] or 'application/octet-stream')
+        self.send_header('Content-Length', str(len(data)))
+        self.send_header('Cache-Control', 'no-store')
+        for k, v in (extra or {}).items():
+            self.send_header(k, v)
+        self.end_headers()
+        self.wfile.write(data)
+
+    def body(self):
+        n = int(self.headers.get('Content-Length') or 0)
+        raw = self.rfile.read(n) if n else b''
+        try:
+            return json.loads(raw or b'{}')
+        except Exception:
+            return {}
+
+    def authorized(self):
+        return secrets.compare_digest(self.headers.get('X-AS-Token', ''), TOKEN)
+
+    def local_host(self):
+        port = self.server.server_address[1]
+        return self.headers.get('Host', '') in (f'127.0.0.1:{port}', f'localhost:{port}')
+
+    def do_GET(self):
+        path = urllib.parse.urlparse(self.path).path
+        if not self.local_host():
+            return self.send_error(403)
+        try:
+            if path in ('/', '/index.html'):
+                d, _ = ui_dir()
+                html = (d / PAGE).read_text(encoding='utf-8')
+                inject = f'<script>window.AS_NATIVE={{token:{json.dumps(TOKEN)},version:{json.dumps(VERSION)},ui:{json.dumps(ui_version())},product:{json.dumps(product_version())},menu:{json.dumps(NATIVE_MENU)},platform:{json.dumps(platform.machine())},os:{json.dumps(sys.platform)}}};</script>'
+                html = html.replace('<head>', '<head>\n' + webstate_script() + inject, 1)
+                body = html.encode('utf-8')
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/html; charset=utf-8')
+                self.send_header('Content-Length', str(len(body)))
+                self.send_header('Cache-Control', 'no-store')
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            m = re.match('^/gallery-thumb/([a-z0-9_@-]{1,120})\\.jpg$', path)
+            if m:
+                f = GALLERY_DIR / 'thumbs' / (m.group(1) + '.jpg')
+                return self.send_file(f, 'image/jpeg', {'Cache-Control': 'max-age=86400'}) if f.exists() else self.send_error(404)
+            if path.startswith('/vendor/'):
+                d, bundled = ui_dir()
+                rel = Path(urllib.parse.unquote(path[1:]))
+                if '..' in rel.parts:
+                    return self.send_error(403)
+                for base in (d, bundled):
+                    f = base / rel
+                    if f.is_file():
+                        ctype = 'text/javascript' if f.suffix in ('.js', '.mjs') else None
+                        return self.send_file(f, ctype)
+                return self.send_error(404)
+            m = re.match('^/model-thumb/([0-9a-f-]{10,40})\\.jpg$', path)
+            if m:
+                q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+                f = MODELS_DIR / m.group(1) / 'thumb.jpg'
+                if not secrets.compare_digest((q.get('tk') or [''])[0], TOKEN):
+                    return self.send_error(403)
+                return self.send_file(f, 'image/jpeg') if f.is_file() else self.send_error(404)
+            if not self.authorized():
+                return self.send_error(403)
+            if path == '/api/open-requests':
+                return self.send_json({'paths': take_open_requests()})
+            if path == '/api/phone':
+                return self.send_json(phone_info())
+            if path == '/api/phone/inbox':
+                try:
+                    return self.send_json({'requests': phone_inbox()})
+                except Exception as exc:
+                    return self.send_json({'requests': [], 'error': str(exc)[:200]})
+            m = re.match('^/api/phone/file/([0-9A-Za-z_-]{10,60})/(part\\d\\d\\.[a-z0-9]{2,5})$', path)
+            if m:
+                f = PHONE_DIR / m.group(1) / m.group(2)
+                return self.send_file(f) if f.is_file() else self.send_error(404)
+            if path == '/api/models':
+                return self.send_json({'models': models_list()})
+            m = re.match('^/api/models/([0-9a-f-]{10,40})/(model\\.(?:glb|obj|stl|ply)|thumb\\.jpg)$', path)
+            if m:
+                f = MODELS_DIR / m.group(1) / m.group(2)
+                return self.send_file(f) if f.is_file() else self.send_error(404)
+            if path == '/api/sculpt-app':
+                return self.send_json({'installed': autosculpt_app() is not None})
+            if path == '/api/info':
+                return self.send_json({'app': APP_NAME, 'version': VERSION, 'ui': ui_version(), 'product': product_version(), 'machine': platform.machine(), 'macos': platform.mac_ver()[0], 'os': sys.platform, 'support': str(SUPPORT), 'settings': load_settings(), 'ram_gb': total_ram_gb(), 'nvidia': IS_WIN and has_nvidia(), 'apple_chip': sys.platform == 'darwin' and platform.machine() == 'arm64', 'free_gb': round(shutil.disk_usage(SUPPORT).free / 2 ** 30), 'microphone': microphone_allowed()})
+            if path == '/api/engines':
+                allk = 'kind=all' in (urllib.parse.urlparse(self.path).query or '')
+                return self.send_json(sorted((engine_status(s) for s in engine_specs().values() if allk or s.get('kind', 'photo3d') == 'photo3d'), key=lambda e: (e['order'], e['name'])))
+            if path.startswith('/api/jobs/'):
+                parts = path.split('/')
+                job = JOBS.get(parts[3]) if len(parts) > 3 else None
+                if not job:
+                    return self.send_error(404)
+                if len(parts) > 5 and parts[4] == 'image' and re.fullmatch('image\\d{1,2}\\.png', parts[5]):
+                    f = job.dir / 'images' / parts[5]
+                    return self.send_file(f, 'image/png') if f.exists() else self.send_error(404)
+                if len(parts) > 4 and parts[4] == 'result':
+                    for f, ctype in ((job.dir / 'result.glb', 'model/gltf-binary'), (job.dir / 'result.obj', 'text/plain')):
+                        if f.exists():
+                            return self.send_file(f, ctype)
+                    return self.send_error(404)
+                return self.send_json(job.as_dict())
+            if path == '/api/update/check':
+                try:
+                    return self.send_json(check_updates())
+                except UserError as exc:
+                    return self.send_json({'available': False, 'error': str(exc), 'error_text': exc.text, 'error_values': exc.values})
+                except Exception as exc:
+                    return self.send_json({'available': False, 'error': str(exc)})
+            if path == '/api/hdri/list':
+                q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+                try:
+                    return self.send_json(hdri_list((q.get('category') or ['outdoor'])[0]))
+                except Exception as exc:
+                    log('Landscape list failed:', repr(exc))
+                    return self.send_json({'error': str(getattr(exc, 'reason', exc))}, 502)
+            if path.startswith('/api/hdri/file/'):
+                q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+                try:
+                    f = hdri_file(path.rsplit('/', 1)[1], (q.get('res') or ['2k'])[0])
+                except UserError as exc:
+                    return self.send_json({'error': str(exc)}, 400)
+                except Exception as exc:
+                    log('Landscape download failed:', repr(exc))
+                    return self.send_json({'error': str(exc)}, 502)
+                return self.send_file(f, 'application/octet-stream')
+            if path in ('/api/gallery/index', '/api/gallery/model'):
+                q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+                try:
+                    if path.endswith('index'):
+                        return self.send_json(gallery_index())
+                    f = gallery_model((q.get('cat') or [''])[0], (q.get('id') or [''])[0])
+                    return self.send_file(f, 'text/plain; charset=utf-8')
+                except UserError as exc:
+                    return self.send_json({'error': exc.text, 'error_values': exc.values}, 502)
+            if path == '/api/report':
+                return self.send_json({'available': bool(report_url())})
+            if path == '/api/disk':
+                return self.send_json(disk_usage_report())
+            if path == '/api/log':
+                return self.send_file(LOG, 'text/plain; charset=utf-8') if LOG.exists() else self.send_json({})
+            return self.send_error(404)
+        except Exception as exc:
+            log('GET error', path, traceback.format_exc())
+            return self.send_json({'error': str(exc)}, 500)
+
+    def do_POST(self):
+        path = urllib.parse.urlparse(self.path).path
+        if not self.local_host() or not self.authorized():
+            return self.send_error(403)
+        try:
+            b = self.body()
+            if path.startswith('/api/engines/') and path.endswith('/install'):
+                spec = engine_specs().get(path.split('/')[3])
+                if not spec:
+                    return self.send_json({'error': 'unknown engine'}, 404)
+                job = run_job(Job('install', 'Installation ' + spec['name']), lambda j: install_engine(j, spec))
+                return self.send_json(job.as_dict())
+            if path == '/api/dirty':
+                QUIT['dirty'] = bool(b.get('dirty'))
+                return self.send_json({'ok': True})
+            if path == '/api/quit':
+                QUIT['allow'] = True
+                w = QUIT.get('win')
+                if w:
+                    threading.Thread(target=lambda: (time.sleep(0.2), w.destroy()), daemon=True).start()
+                return self.send_json({'ok': True})
+            if path == '/api/disk/clean':
+                return self.send_json(disk_clean([str(x) for x in b.get('ids') or []]))
+            if path.startswith('/api/engines/') and path.endswith('/remove'):
+                eid = path.split('/')[3]
+                if eid not in engine_specs():
+                    return self.send_json({'error': 'unknown engine'}, 404)
+                if engine_specs()[eid].get('type') == 'cloud':
+                    save_key(eid, '')
+                    return self.send_json({'ok': True})
+                shutil.rmtree(engine_home(eid) / 'venv', ignore_errors=True)
+                shutil.rmtree(engine_home(eid) / 'weights', ignore_errors=True)
+                shutil.rmtree(engine_home(eid) / 'src', ignore_errors=True)
+                (engine_home(eid) / 'installed.json').unlink(missing_ok=True)
+                return self.send_json({'ok': True})
+            if path == '/api/photo3d':
+                spec = engine_specs().get(b.get('engine') or 'triposg')
+                if not spec:
+                    return self.send_json({'error': 'unknown engine'}, 404)
+                photos = b.get('images') or [b.get('image', '')]
+                job = Job('photo3d', 'Photo to 3D')
+                imgs = []
+                try:
+                    for i, data in enumerate(photos[:8]):
+                        head, _, data = data.rpartition(',')
+                        ext = '.png' if 'png' in head else '.webp' if 'webp' in head else '.jpg'
+                        img = job.dir / f'photo{i + 1}{ext}'
+                        img.write_bytes(base64.b64decode(data))
+                        imgs.append(img)
+                except Exception:
+                    return self.send_json({'error': 'invalid image'}, 400)
+                if not imgs:
+                    return self.send_json({'error': 'invalid image'}, 400)
+                run_job(job, lambda j: run_engine(j, spec, imgs, b.get('options') or {}))
+                return self.send_json(job.as_dict())
+            if path == '/api/text2image':
+                spec = engine_specs().get(b.get('engine') or '')
+                if not spec or not has_kind(spec, 'text2image'):
+                    return self.send_json({'error': 'unknown engine'}, 404)
+                prompt = str(b.get('prompt') or '').strip()[:600]
+                if not prompt:
+                    return self.send_json({'error': 'Write a description of the subject'}, 400)
+                job = Job('text2image', 'Description to pictures')
+                run_job(job, lambda j: run_text2image(j, spec, prompt, str(b.get('lang') or 'en')[:5], max(1, min(int(b.get('count') or 4), 6)), b.get('options') or {}))
+                return self.send_json(job.as_dict())
+            if path == '/api/multiview':
+                spec = engine_specs().get(b.get('engine') or '')
+                if not spec or not has_kind(spec, 'multiview'):
+                    return self.send_json({'error': 'unknown engine'}, 404)
+                src = str(b.get('image') or '')
+                try:
+                    if src.startswith('/api/jobs/'):
+                        parts = src.split('/')
+                        ref = (JOBS[parts[3]].dir / 'images' / Path(parts[-1]).name).read_bytes()
+                    else:
+                        ref = base64.b64decode(src.split(',', 1)[1])
+                except Exception:
+                    return self.send_json({'error': 'picture not found'}, 400)
+                job = Job('multiview', 'Views of the subject')
+                run_job(job, lambda j: run_text2image(j, spec, str(b.get('prompt') or '').strip()[:600], str(b.get('lang') or 'en')[:5], 4, b.get('options') or {}, reference=ref))
+                return self.send_json(job.as_dict())
+            if path == '/api/text2text':
+                spec = engine_specs().get(b.get('engine') or '')
+                if not spec or not has_kind(spec, 'text2text') or spec.get('type') != 'cloud':
+                    return self.send_json({'error': 'unknown engine'}, 404)
+                task, text = (str(b.get('task') or ''), str(b.get('text') or '').strip()[:4000])
+                if task not in ('prompt', 'metalwork'):
+                    return self.send_json({'error': 'unknown task'}, 400)
+                if not text:
+                    return self.send_json({'error': 'Write a description of the subject'}, 400)
+                context = str(b.get('context') or '')[:60000] if task == 'metalwork' else ''
+                job = Job('text2text', 'Description to text')
+                run_job(job, lambda j: run_text2text(j, spec, task, text, context, symmetric=bool(b.get('symmetric'))))
+                return self.send_json(job.as_dict())
+            if path == '/api/speech2text':
+                spec = engine_specs().get(b.get('engine') or '')
+                if not spec or not has_kind(spec, 'speech2text'):
+                    return self.send_json({'error': 'unknown engine'}, 404)
+                job = Job('speech2text', 'Voice to text')
+                try:
+                    wav = job.dir / 'voice.wav'
+                    wav.write_bytes(base64.b64decode(str(b.get('audio') or '').rpartition(',')[2]))
+                except Exception:
+                    return self.send_json({'error': 'invalid audio'}, 400)
+                run_job(job, lambda j: run_speech2text(j, spec, wav, str(b.get('lang') or '')[:5]))
+                return self.send_json(job.as_dict())
+            if path == '/api/keys':
+                if (b.get('engine') or '') not in engine_specs():
+                    return self.send_json({'error': 'unknown engine'}, 404)
+                save_key(b['engine'], str(b.get('key') or '').strip())
+                return self.send_json({'ok': True})
+            if path.startswith('/api/jobs/') and path.endswith('/cancel'):
+                job = JOBS.get(path.split('/')[3])
+                if job:
+                    job.cancelled = True
+                    pr = job.proc
+                    if pr:
+                        pr.terminate()
+                        threading.Timer(5.0, lambda: pr.poll() is None and pr.kill()).start()
+                return self.send_json({'ok': True})
+            if path == '/api/update/apply':
+                job = run_job(Job('update', 'Update'), apply_updates)
+                return self.send_json(job.as_dict())
+            if path == '/api/report':
+                try:
+                    return self.send_json(send_report(b))
+                except UserError as exc:
+                    return self.send_json({'error': exc.text, 'values': exc.values}, 502)
+            if path == '/api/clientlog':
+                log('Page:', str(b.get('text', ''))[:800].replace('\n', ' | '))
+                return self.send_json({'ok': True})
+            if path == '/api/models/save':
+                try:
+                    return self.send_json({'id': models_save(b)})
+                except UserError as exc:
+                    return self.send_json({'error': exc.text, 'values': exc.values}, 400)
+            m = re.match('^/api/models/([0-9a-f-]{10,40})/(thumb|meta|delete)$', path)
+            if m:
+                d = MODELS_DIR / m.group(1)
+                if not d.is_dir():
+                    return self.send_json({'error': 'Unknown model'}, 404)
+                if m.group(2) == 'delete':
+                    shutil.rmtree(d, ignore_errors=True)
+                elif m.group(2) == 'thumb':
+                    (d / 'thumb.jpg').write_bytes(base64.b64decode(b.get('b64') or ''))
+                else:
+                    meta = json.loads((d / 'meta.json').read_text(encoding='utf-8'))
+                    meta['title'] = str(b.get('title') or '')[:120]
+                    (d / 'meta.json').write_text(json.dumps(meta, ensure_ascii=False), encoding='utf-8')
+                return self.send_json({'ok': True})
+            if path == '/api/phone/enable':
+                try:
+                    return self.send_json(phone_enable(bool(b.get('on'))))
+                except UserError as exc:
+                    return self.send_json({'error': exc.text, 'values': exc.values}, 400)
+            m = re.match('^/api/phone/status/([0-9A-Za-z_-]{10,60})$', path)
+            if m:
+                try:
+                    phone_status(m.group(1), b if isinstance(b, dict) else {})
+                    return self.send_json({'ok': True})
+                except Exception as exc:
+                    return self.send_json({'error': str(exc)[:200]}, 400)
+            if path == '/api/send-to-autosculpt':
+                try:
+                    name = ''.join((ch for ch in Path(str(b.get('name') or 'model.glb')).name if ch not in '/\\:*?"<>|' and ord(ch) >= 32)).strip() or 'model.glb'
+                    if Path(name).suffix.lower() not in ('.glb', '.obj', '.stl', '.ply'):
+                        raise UserError('Unknown model format')
+                    folder = documents_dir() / 'AutoSculpt Studio'
+                    folder.mkdir(parents=True, exist_ok=True)
+                    f, n = (folder / name, 2)
+                    while f.exists():
+                        f, n = (folder / f'{Path(name).stem} {n}{Path(name).suffix}', n + 1)
+                    f.write_bytes(base64.b64decode(b.get('b64') or ''))
+                    how = send_to_autosculpt(f)
+                    log('Model sent to AutoSculpt 3D:', f.name, how)
+                    return self.send_json({'ok': True, 'path': str(f), 'how': how})
+                except UserError as exc:
+                    return self.send_json({'error': exc.text, 'values': exc.values}, 400)
+            if path == '/api/export':
+                try:
+                    return self.send_json(export_file(b.get('name', ''), b.get('b64', ''), b.get('path')))
+                except Exception as exc:
+                    log('Export failed:', exc)
+                    return self.send_json({'error': str(exc)}, 400)
+            if path == '/api/webstate':
+                if not isinstance(b, dict):
+                    return self.send_json({'error': 'invalid'}, 400)
+                webstate_update(b)
+                return self.send_json({'ok': True})
+            if path == '/api/menu':
+                menus = b.get('menus')
+                if not isinstance(menus, list) or len(menus) > 10:
+                    return self.send_json({'error': 'invalid menu'}, 400)
+                data = json.dumps({'lang': str(b.get('lang', ''))[:10], 'menus': menus}, ensure_ascii=False)
+                changed = not MENU_FILE.exists() or MENU_FILE.read_text(encoding='utf-8') != data
+                if changed:
+                    MENU_FILE.write_text(data, encoding='utf-8')
+                return self.send_json({'changed': changed, 'active': NATIVE_MENU})
+            if path == '/api/settings':
+                s = load_settings()
+                for k in ('auto_check',):
+                    if k in b:
+                        s[k] = b[k]
+                save_settings(s)
+                return self.send_json(s)
+            return self.send_error(404)
+        except Exception as exc:
+            log('POST error', path, traceback.format_exc())
+            return self.send_json({'error': str(exc)}, 500)
+
+def cleanup_jobs(days=2):
+    limit = time.time() - days * 86400
+    for d in (SUPPORT / 'jobs').iterdir():
+        try:
+            if d.stat().st_mtime < limit:
+                shutil.rmtree(d, ignore_errors=True)
+        except Exception:
+            pass
+
+def start_server():
+    cleanup_jobs()
+    srv = None
+    for port in list(PREFERRED_PORTS) + [0]:
+        try:
+            srv = ThreadingHTTPServer(('127.0.0.1', port), Handler)
+            break
+        except OSError:
+            continue
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    return srv
+EXPORT_EXT = {'.as3d', '.dxf', '.zip', '.obj', '.stl', '.png', '.pdf', '.usdz', '.glb', '.mp4', '.webm', '.json', '.txt', '.csv', '.svg', '.html'}
+
+def win_save_dialog(name, directory):
+    import ctypes
+    from ctypes import wintypes
+
+    class OPENFILENAMEW(ctypes.Structure):
+        _fields_ = [('lStructSize', wintypes.DWORD), ('hwndOwner', wintypes.HWND), ('hInstance', wintypes.HINSTANCE), ('lpstrFilter', wintypes.LPCWSTR), ('lpstrCustomFilter', wintypes.LPWSTR), ('nMaxCustFilter', wintypes.DWORD), ('nFilterIndex', wintypes.DWORD), ('lpstrFile', wintypes.LPWSTR), ('nMaxFile', wintypes.DWORD), ('lpstrFileTitle', wintypes.LPWSTR), ('nMaxFileTitle', wintypes.DWORD), ('lpstrInitialDir', wintypes.LPCWSTR), ('lpstrTitle', wintypes.LPCWSTR), ('Flags', wintypes.DWORD), ('nFileOffset', wintypes.WORD), ('nFileExtension', wintypes.WORD), ('lpstrDefExt', wintypes.LPCWSTR), ('lCustData', wintypes.LPARAM), ('lpfnHook', ctypes.c_void_p), ('lpTemplateName', wintypes.LPCWSTR), ('pvReserved', ctypes.c_void_p), ('dwReserved', wintypes.DWORD), ('FlagsEx', wintypes.DWORD)]
+    ext = Path(name).suffix.lstrip('.')
+    buf = ctypes.create_unicode_buffer(name, 2048)
+    filt = ctypes.create_unicode_buffer(f'*.{ext}\x00*.{ext}\x00*.*\x00*.*\x00\x00' if ext else '*.*\x00*.*\x00\x00')
+    user32, comdlg32, ole32 = (ctypes.windll.user32, ctypes.windll.comdlg32, ctypes.windll.ole32)
+    user32.GetForegroundWindow.restype = wintypes.HWND
+    ofn = OPENFILENAMEW()
+    ofn.lStructSize = ctypes.sizeof(OPENFILENAMEW)
+    ofn.hwndOwner = user32.GetForegroundWindow()
+    ofn.lpstrFilter = ctypes.cast(filt, wintypes.LPCWSTR)
+    ofn.lpstrFile = ctypes.cast(buf, wintypes.LPWSTR)
+    ofn.nMaxFile = 2048
+    ofn.lpstrInitialDir = str(directory)
+    if ext:
+        ofn.lpstrDefExt = ext
+    ofn.Flags = 524288 | 2 | 4 | 2048 | 8
+    comdlg32.GetSaveFileNameW.argtypes = [ctypes.POINTER(OPENFILENAMEW)]
+    comdlg32.GetSaveFileNameW.restype = wintypes.BOOL
+    com = ole32.CoInitializeEx(None, 2) in (0, 1)
+    try:
+        if comdlg32.GetSaveFileNameW(ctypes.byref(ofn)):
+            return buf.value
+        err = comdlg32.CommDlgExtendedError()
+        if err:
+            raise OSError(f'save dialog error {err:#x}')
+        return ''
+    finally:
+        if com:
+            ole32.CoUninitialize()
+
+def export_file(name, b64, path=None):
+    name = ''.join((ch for ch in Path(str(name)).name if ch not in '/\\:*?"<>|' and ord(ch) >= 32)).strip() or 'export'
+    if Path(name).suffix.lower() not in EXPORT_EXT:
+        raise ValueError('file type not allowed')
+    data = base64.b64decode(b64)
+    fallback = False
+    if path:
+        path = Path(str(path))
+        if not path.is_absolute() or path.suffix.lower() not in EXPORT_EXT:
+            raise ValueError('invalid path')
+    else:
+        chosen = None
+        if IS_WIN:
+            try:
+                chosen = win_save_dialog(name, documents_dir())
+                if chosen == '':
+                    return {'cancelled': True}
+            except Exception:
+                log('Save dialog failed:', traceback.format_exc().strip().splitlines()[-1])
+                chosen = None
+        if chosen:
+            path = Path(chosen)
+            if not path.suffix and Path(name).suffix:
+                path = Path(str(path) + Path(name).suffix)
+        else:
+            folder = documents_dir() / 'AutoSculpt Studio'
+            folder.mkdir(parents=True, exist_ok=True)
+            stem, suf, n = (Path(name).stem, Path(name).suffix, 2)
+            path = folder / name
+            while path.exists():
+                path, n = (folder / f'{stem} {n}{suf}', n + 1)
+            fallback = True
+    path.write_bytes(data)
+    log('Saved', path)
+    if fallback:
+        try:
+            if IS_WIN:
+                subprocess.Popen(['explorer', '/select,', str(path)], **NO_WINDOW)
+            elif IS_MAC:
+                subprocess.run(['open', '-R', str(path)])
+        except Exception:
+            pass
+    return {'path': str(path), 'name': path.name, 'fallback': fallback}
+
+class Bridge:
+
+    def __init__(self):
+        self._win = None
+
+    def _dialog(self, kind, multiple=False, **kw):
+        import webview
+        fd = getattr(webview, 'FileDialog', None)
+        const = {'save': getattr(fd, 'SAVE', None) if fd else None, 'open': getattr(fd, 'OPEN', None) if fd else None}[kind]
+        if const is None:
+            const = webview.SAVE_DIALOG if kind == 'save' else webview.OPEN_DIALOG
+        r = self._win.create_file_dialog(const, allow_multiple=multiple, **kw) if multiple else self._win.create_file_dialog(const, **kw)
+        if multiple:
+            return list(r or [])
+        if isinstance(r, (list, tuple)):
+            r = r[0] if r else None
+        return r
+
+    def save_file(self, name, b64, path=None):
+        if not path:
+            path = self._dialog('save', save_filename=name, directory=str(documents_dir()))
+            if not path:
+                return None
+            if not Path(path).suffix and Path(name).suffix:
+                path = str(path) + Path(name).suffix
+        Path(path).write_bytes(base64.b64decode(b64))
+        log('Saved', path)
+        return {'path': path, 'name': Path(path).name}
+
+    def open_file(self, kind='all', label=None):
+        exts = {'project': '*.as3d;*.json', 'image': '*.jpg;*.jpeg;*.png;*.heic;*.webp' if IS_MAC else '*.jpg;*.jpeg;*.png;*.webp', 'dxf': '*.dxf;*.svg', 'all': '*.as3d;*.obj;*.stl;*.glb;*.gltf;*.ply;*.json;*.dxf;*.svg'}.get(kind, '*.*')
+        default = {'project': 'AutoSculpt 3D projects', 'image': 'Images', 'dxf': 'DXF and SVG drawings', 'all': '3D models and projects'}.get(kind, 'Files')
+        types = (f'{label or default} ({exts})',)
+        path = self._dialog('open', file_types=types, directory=str(Path.home()))
+        if not path:
+            return None
+        return self.read_file(path)
+
+    def open_files(self, kind='image', label=None, limit=5):
+        exts = '*.jpg;*.jpeg;*.png;*.heic;*.webp' if IS_MAC else '*.jpg;*.jpeg;*.png;*.webp'
+        paths = self._dialog('open', multiple=True, file_types=(f"{label or 'Images'} ({exts})",), directory=str(Path.home()))
+        return [f for f in (self.read_file(p) for p in paths[:int(limit)]) if f]
+
+    def read_file(self, path):
+        p = Path(path)
+        if not p.is_file():
+            return None
+        data = p.read_bytes()
+        if p.suffix.lower() == '.heic' and IS_MAC:
+            out = Path(tempfile.mkdtemp(dir=SUPPORT / 'updates')) / (p.stem + '.jpg')
+            subprocess.run(['sips', '-s', 'format', 'jpeg', str(p), '--out', str(out)], capture_output=True)
+            if out.exists():
+                data, p = (out.read_bytes(), out)
+        return {'path': str(path), 'name': p.name, 'b64': base64.b64encode(data).decode()}
+
+    def autosave_path(self, name, untitled='Untitled'):
+        folder = documents_dir() / 'AutoSculpt Studio'
+        folder.mkdir(parents=True, exist_ok=True)
+        base = ''.join((ch for ch in str(name) if ch not in '/\\:*?"<>|')).strip().replace('_', ' ') or untitled
+        p, n = (folder / (base + '.as3d'), 2)
+        while p.exists():
+            p, n = (folder / f'{base} {n}.as3d', n + 1)
+        return str(p)
+
+    def reveal(self, path):
+        if IS_WIN:
+            subprocess.Popen(['explorer', '/select,', str(Path(path))], **NO_WINDOW)
+        elif IS_MAC:
+            subprocess.run(['open', '-R', path])
+        else:
+            subprocess.run(['xdg-open', str(Path(path).parent)])
+
+    def open_url(self, url):
+        if url.startswith('https://'):
+            import webbrowser
+            webbrowser.open(url)
+
+    def restart(self):
+        app = os.environ.get('AUTOSCULPT_APP')
+        pid = os.getpid()
+        log('Restart requested')
+        if IS_WIN:
+            env = clean_env({'AUTOSCULPT_WAIT_PID': str(pid)})
+            env.pop('AUTOSCULPT_UPDATED', None)
+            subprocess.Popen([sys.executable, str(RESOURCES / 'main.py')], env=env, close_fds=True, creationflags=8 | 512)
+        elif app:
+            fresh = clean_env()
+            fresh.pop('AUTOSCULPT_UPDATED', None)
+            subprocess.Popen(['/bin/sh', '-c', f'n=0; while kill -0 {pid} 2>/dev/null && [ $n -lt 100 ]; do sleep 0.2; n=$((n+1)); done; sleep 0.5; open "{app}"'], env=fresh, start_new_session=True)
+
+        def close_and_exit():
+            time.sleep(0.3)
+            threading.Timer(3.0, lambda: (stop_engines(), os._exit(0))).start()
+            try:
+                self._win.destroy()
+            except Exception:
+                log('Closing the window failed:', traceback.format_exc())
+            time.sleep(0.5)
+            os._exit(0)
+        threading.Thread(target=close_and_exit, daemon=True).start()
+        return True
+
+def maybe_run_updated_copy():
+    upd = SUPPORT / 'app' / 'main.py'
+    if os.environ.get('AUTOSCULPT_UPDATED') or BUNDLE_APP == upd.parent or (not upd.exists()):
+        return
+    try:
+        newer = vtuple((SUPPORT / 'app' / 'VERSION').read_text()) > vtuple(VERSION)
+    except Exception:
+        newer = False
+    if newer:
+        os.environ['AUTOSCULPT_UPDATED'] = '1'
+        os.environ.setdefault('AUTOSCULPT_BUNDLE', str(BUNDLE_APP))
+        if IS_WIN:
+            subprocess.Popen([sys.executable, str(upd), *sys.argv[1:]], env=os.environ.copy(), close_fds=True)
+            sys.exit(0)
+        os.execv(sys.executable, [sys.executable, str(upd), *sys.argv[1:]])
+OPENABLE = {'.as3d', '.json', '.obj', '.stl', '.glb', '.gltf', '.ply'}
+OPEN_DIR = SUPPORT / 'open-requests'
+PID_FILE = SUPPORT / 'instance.pid'
+_open_lock = threading.Lock()
+_open_paths = []
+
+def queue_open(path):
+    p = Path(str(path))
+    if p.suffix.lower() in OPENABLE and p.is_file():
+        with _open_lock:
+            _open_paths.append(str(p))
+        log('Open request', p)
+
+def take_open_requests():
+    with _open_lock:
+        out, _open_paths[:] = (list(_open_paths), [])
+    try:
+        for f in sorted(OPEN_DIR.glob('*.txt')):
+            out.append(f.read_text(encoding='utf-8').strip())
+            f.unlink(missing_ok=True)
+    except Exception:
+        pass
+    return [p for p in out if p]
+
+def pid_alive(pid):
+    try:
+        pid = int(pid)
+        if pid == os.getpid():
+            return False
+        if IS_WIN:
+            import ctypes
+            h = ctypes.windll.kernel32.OpenProcess(4096, False, pid)
+            if not h:
+                return False
+            code = ctypes.c_ulong()
+            ctypes.windll.kernel32.GetExitCodeProcess(h, ctypes.byref(code))
+            ctypes.windll.kernel32.CloseHandle(h)
+            return code.value == 259
+        os.kill(pid, 0)
+        return True
+    except Exception:
+        return False
+
+def hand_over_to_running_instance(paths):
+    try:
+        if not paths or not PID_FILE.exists() or (not pid_alive(PID_FILE.read_text().strip())):
+            return False
+        OPEN_DIR.mkdir(parents=True, exist_ok=True)
+        for i, p in enumerate(paths):
+            (OPEN_DIR / f'{time.time_ns()}-{i}.txt').write_text(p, encoding='utf-8')
+        return True
+    except Exception:
+        return False
+
+def autosculpt_support():
+    if IS_WIN:
+        return Path(os.environ.get('APPDATA', Path.home() / 'AppData' / 'Roaming')) / 'AutoSculpt3D'
+    if IS_MAC:
+        return Path.home() / 'Library' / 'Application Support' / 'AutoSculpt3D'
+    return Path(os.environ.get('XDG_DATA_HOME', Path.home() / '.local' / 'share')) / 'AutoSculpt3D'
+
+def autosculpt_app():
+    if os.environ.get('AUTOSCULPT_SCULPT_APP'):
+        return Path(os.environ['AUTOSCULPT_SCULPT_APP'])
+    if IS_MAC:
+        for d in (Path('/Applications'), Path.home() / 'Applications'):
+            if (d / 'AutoSculpt 3D.app').exists():
+                return d / 'AutoSculpt 3D.app'
+        return None
+    if IS_WIN:
+        for d in (Path(os.environ.get('LOCALAPPDATA', '')) / 'Programs' / 'AutoSculpt 3D', Path(os.environ.get('ProgramFiles', 'C:/Program Files')) / 'AutoSculpt 3D'):
+            if (d / 'AutoSculpt3D.exe').exists():
+                return d / 'AutoSculpt3D.exe'
+    return None
+
+def adopt_autosculpt_data():
+    mark = SUPPORT / 'adopted.txt'
+    old = autosculpt_support()
+    if mark.exists() or not old.exists():
+        return
+    moved = []
+    try:
+        for d in (old / 'engines').iterdir() if (old / 'engines').exists() else []:
+            if d.is_dir() and d.name not in RETIRED_ENGINES and (not (SUPPORT / 'engines' / d.name).exists()):
+                shutil.move(str(d), str(SUPPORT / 'engines' / d.name))
+                moved.append(d.name)
+        if (old / 'gallery').exists() and (not GALLERY_DIR.exists()):
+            shutil.move(str(old / 'gallery'), str(GALLERY_DIR))
+            moved.append('gallery')
+        try:
+            keys = json.loads((old / 'keys.json').read_text())
+        except Exception:
+            keys = {}
+        mine = load_keys()
+        for k, v in keys.items():
+            if not k.startswith('lib:') and k not in mine and v:
+                save_key(k, v)
+                moved.append('key ' + k)
+        mark.write_text(time.strftime('%Y-%m-%d %H:%M:%S ') + ', '.join(moved), encoding='utf-8')
+        if moved:
+            log('Taken over from AutoSculpt 3D:', ', '.join((m if not m.startswith('key ') else 'a key' for m in moved)))
+    except Exception as e:
+        log('Could not take over the engines of AutoSculpt 3D:', e)
+
+def send_to_autosculpt(path):
+    path = Path(path)
+    if not path.is_file():
+        raise UserError('The model file is missing')
+    app = autosculpt_app()
+    if app is None:
+        raise UserError('AutoSculpt 3D is not installed on this computer')
+    if IS_MAC:
+        subprocess.Popen(['open', '-a', str(app), str(path)], env=clean_env())
+        return 'opened'
+    pid = autosculpt_support() / 'instance.pid'
+    try:
+        running = pid.exists() and pid_alive(pid.read_text().strip())
+    except Exception:
+        running = False
+    if running:
+        req = autosculpt_support() / 'open-requests'
+        req.mkdir(parents=True, exist_ok=True)
+        (req / f'{time.time_ns()}-studio.txt').write_text(str(path), encoding='utf-8')
+        return 'sent'
+    subprocess.Popen([str(app), str(path)], env=clean_env(), **NO_WINDOW)
+    return 'opened'
+PHONE_URL = os.environ.get('AUTOSCULPT_PHONE_URL', 'https://autosculpt-studio.nerosdmf.workers.dev')
+PHONE_DIR = SUPPORT / 'phone'
+PHONE_LOCK = threading.Lock()
+MODELS_DIR = SUPPORT / 'models'
+MODEL_EXT = ('.glb', '.obj', '.stl', '.ply')
+
+def models_list():
+    out = []
+    for d in sorted(MODELS_DIR.glob('*'), key=lambda x: x.stat().st_mtime, reverse=True) if MODELS_DIR.exists() else []:
+        try:
+            meta = json.loads((d / 'meta.json').read_text(encoding='utf-8'))
+        except Exception:
+            continue
+        f = next((x for x in d.iterdir() if x.suffix.lower() in MODEL_EXT and x.stem == 'model'), None)
+        if f:
+            meta.update(id=d.name, file=f.name, bytes=f.stat().st_size, thumb=(d / 'thumb.jpg').exists())
+            out.append(meta)
+    return out
+
+def models_save(b):
+    ext = '.' + str(b.get('ext') or 'glb').lower().lstrip('.')
+    if ext not in MODEL_EXT:
+        raise UserError('Unknown model format')
+    mid = time.strftime('%Y%m%d-%H%M%S-') + secrets.token_hex(3)
+    d = MODELS_DIR / mid
+    d.mkdir(parents=True, exist_ok=True)
+    if b.get('job') and b.get('name'):
+        src = SUPPORT / 'jobs' / re.sub('[^0-9a-f]', '', str(b['job'])) / Path(str(b['name'])).name
+        if not src.is_file():
+            raise UserError('The model file is missing')
+        shutil.copyfile(src, d / ('model' + ext))
+    else:
+        (d / ('model' + ext)).write_bytes(base64.b64decode(b.get('b64') or ''))
+    meta = {k: b.get(k) for k in ('title', 'prompt', 'engine', 'source', 'request', 'faces') if b.get(k) is not None}
+    meta['created'] = time.strftime('%Y-%m-%d %H:%M')
+    (d / 'meta.json').write_text(json.dumps(meta, ensure_ascii=False), encoding='utf-8')
+    return mid
+
+def qr_svg(text):
+    data = text.encode('utf-8')
+    ecc_len = [0, 10, 16, 26, 18, 24, 16, 18, 22, 22, 26]
+    blocks_n = [0, 1, 1, 1, 2, 2, 4, 4, 4, 5, 5]
+
+    def raw_modules(v):
+        r = (16 * v + 128) * v + 64
+        if v >= 2:
+            na = v // 7 + 2
+            r -= (25 * na - 10) * na - 55
+            if v >= 7:
+                r -= 36
+        return r
+    ver = next((v for v in range(1, 11) if (raw_modules(v) // 8 - ecc_len[v] * blocks_n[v]) * 8 >= 4 + (8 if v < 10 else 16) + 8 * len(data)), None)
+    if ver is None:
+        raise ValueError('text too long for the QR code')
+    cap = raw_modules(ver) // 8 - ecc_len[ver] * blocks_n[ver]
+    bits = [0, 1, 0, 0] + [len(data) >> i & 1 for i in reversed(range(8 if ver < 10 else 16))]
+    for b in data:
+        bits += [b >> i & 1 for i in reversed(range(8))]
+    bits += [0] * min(4, cap * 8 - len(bits))
+    bits += [0] * (-len(bits) % 8)
+    cw = [int(''.join(map(str, bits[i:i + 8])), 2) for i in range(0, len(bits), 8)]
+    pad = 236
+    while len(cw) < cap:
+        cw.append(pad)
+        pad ^= 236 ^ 17
+
+    def mul(x, y):
+        z = 0
+        for i in reversed(range(8)):
+            z = z << 1 ^ (z >> 7) * 285
+            z ^= (y >> i & 1) * x
+        return z
+
+    def divisor(deg):
+        res, root = ([0] * (deg - 1) + [1], 1)
+        for _ in range(deg):
+            for j in range(len(res)):
+                res[j] = mul(res[j], root)
+                if j + 1 < len(res):
+                    res[j] ^= res[j + 1]
+            root = mul(root, 2)
+        return res
+
+    def remainder(msg, div):
+        res = [0] * len(div)
+        for b in msg:
+            f = b ^ res.pop(0)
+            res.append(0)
+            for i, c in enumerate(div):
+                res[i] ^= mul(c, f)
+        return res
+    nb, el = (blocks_n[ver], ecc_len[ver])
+    raw = raw_modules(ver) // 8
+    short_n, short_len = (nb - raw % nb, raw // nb)
+    div, blocks, k = (divisor(el), [], 0)
+    for i in range(nb):
+        d = cw[k:k + short_len - el + (0 if i < short_n else 1)]
+        k += len(d)
+        e = remainder(d, div)
+        if i < short_n:
+            d = d + [0]
+        blocks.append(d + e)
+    final = []
+    for i in range(len(blocks[0])):
+        for j, b in enumerate(blocks):
+            if i != short_len - el or j >= short_n:
+                final.append(b[i])
+    n = ver * 4 + 17
+    mod = [[False] * n for _ in range(n)]
+    fn = [[False] * n for _ in range(n)]
+
+    def setf(x, y, dark):
+        mod[y][x], fn[y][x] = (dark, True)
+    for i in range(n):
+        setf(6, i, i % 2 == 0)
+        setf(i, 6, i % 2 == 0)
+    for cx, cy in ((3, 3), (n - 4, 3), (3, n - 4)):
+        for dy in range(-4, 5):
+            for dx in range(-4, 5):
+                x, y = (cx + dx, cy + dy)
+                if 0 <= x < n and 0 <= y < n:
+                    setf(x, y, max(abs(dx), abs(dy)) not in (2, 4))
+    if ver > 1:
+        num = ver // 7 + 2
+        step = (ver * 8 + num * 3 + 5) // (num * 4 - 4) * 2
+        pos = [6] + [n - 7 - i * step for i in reversed(range(num - 1))]
+        for i, a in enumerate(pos):
+            for j, b in enumerate(pos):
+                if i == 0 and j == 0 or (i == 0 and j == num - 1) or (i == num - 1 and j == 0):
+                    continue
+                for dy in range(-2, 3):
+                    for dx in range(-2, 3):
+                        setf(a + dx, b + dy, max(abs(dx), abs(dy)) != 1)
+
+    def format_bits(mask):
+        d = 0 << 3 | mask
+        r = d
+        for _ in range(10):
+            r = r << 1 ^ (r >> 9) * 1335
+        b = (d << 10 | r) ^ 21522
+        bit = lambda i: b >> i & 1 == 1
+        for i in range(6):
+            setf(8, i, bit(i))
+        setf(8, 7, bit(6))
+        setf(8, 8, bit(7))
+        setf(7, 8, bit(8))
+        for i in range(9, 15):
+            setf(14 - i, 8, bit(i))
+        for i in range(8):
+            setf(n - 1 - i, 8, bit(i))
+        for i in range(8, 15):
+            setf(8, n - 15 + i, bit(i))
+        setf(8, n - 8, True)
+    format_bits(0)
+    if ver >= 7:
+        r = ver
+        for _ in range(12):
+            r = r << 1 ^ (r >> 11) * 7973
+        vb = ver << 12 | r
+        for i in range(18):
+            bt, a, b2 = (vb >> i & 1 == 1, n - 11 + i % 3, i // 3)
+            setf(a, b2, bt)
+            setf(b2, a, bt)
+    i, right = (0, n - 1)
+    while right >= 1:
+        if right == 6:
+            right = 5
+        for vert in range(n):
+            for j in range(2):
+                x = right - j
+                y = n - 1 - vert if right + 1 & 2 == 0 else vert
+                if not fn[y][x] and i < len(final) * 8:
+                    mod[y][x] = final[i >> 3] >> 7 - (i & 7) & 1 == 1
+                    i += 1
+        right -= 2
+    masks = [lambda x, y: (x + y) % 2 == 0, lambda x, y: y % 2 == 0, lambda x, y: x % 3 == 0, lambda x, y: (x + y) % 3 == 0, lambda x, y: (x // 3 + y // 2) % 2 == 0, lambda x, y: x * y % 2 + x * y % 3 == 0, lambda x, y: (x * y % 2 + x * y % 3) % 2 == 0, lambda x, y: ((x + y) % 2 + x * y % 3) % 2 == 0]
+
+    def apply(m):
+        for y in range(n):
+            for x in range(n):
+                if not fn[y][x] and masks[m](x, y):
+                    mod[y][x] = not mod[y][x]
+
+    def penalty():
+        p = 0
+        for line in [mod[y] for y in range(n)] + [[mod[y][x] for y in range(n)] for x in range(n)]:
+            run, prev = (0, None)
+            for c in line:
+                run = run + 1 if c == prev else 1
+                prev = c
+                if run == 5:
+                    p += 3
+                elif run > 5:
+                    p += 1
+        for y in range(n - 1):
+            for x in range(n - 1):
+                if mod[y][x] == mod[y][x + 1] == mod[y + 1][x] == mod[y + 1][x + 1]:
+                    p += 3
+        dark = sum((sum(r) for r in mod))
+        return p + abs(dark * 20 - n * n * 10) // (n * n) * 10
+    best = None
+    for m in range(8):
+        apply(m)
+        format_bits(m)
+        pen = penalty()
+        if best is None or pen < best[0]:
+            best = (pen, m)
+        apply(m)
+    apply(best[1])
+    format_bits(best[1])
+    q = 4
+    path = ''.join((f'M{x + q},{y + q}h1v1h-1z' for y in range(n) for x in range(n) if mod[y][x]))
+    return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {n + 2 * q} {n + 2 * q}" shape-rendering="crispEdges"><rect width="100%" height="100%" fill="#fff"/><path d="{path}" fill="#000"/></svg>'
+
+def phone_settings():
+    s = load_settings()
+    return s.get('phone') or {}
+
+def phone_call(method, path, data=None, ctype='application/json', timeout=30):
+    ph = phone_settings()
+    headers = {'X-API-Key': ph.get('key', ''), 'User-Agent': 'AutoSculptStudio/' + VERSION}
+    if data is not None:
+        headers['Content-Type'] = ctype
+    req = urllib.request.Request(PHONE_URL + path, data=data, method=method, headers=headers)
+    with urlopen(req, timeout) as r:
+        return r.read()
+
+def phone_enable(on):
+    s = load_settings()
+    ph = s.get('phone') or {}
+    if not on:
+        ph['on'] = False
+        s['phone'] = ph
+        save_settings(s)
+        return phone_info()
+    ph.setdefault('key', secrets.token_urlsafe(30))
+    ph.setdefault('phone', secrets.token_urlsafe(18))
+    body = json.dumps({'phone': ph['phone']}).encode()
+    req = urllib.request.Request(PHONE_URL + '/claim', data=body, method='POST', headers={'X-API-Key': ph['key'], 'Content-Type': 'application/json', 'User-Agent': 'AutoSculptStudio/' + VERSION})
+    try:
+        with urlopen(req, 20) as r:
+            r.read()
+    except urllib.error.HTTPError as e:
+        if e.code == 403:
+            raise UserError('The phone service is already used by another computer')
+        raise UserError('The phone service did not answer ({detail})', detail=str(e.code))
+    except Exception as e:
+        raise UserError('The phone service did not answer ({detail})', detail=str(e)[:120])
+    ph['on'] = True
+    s['phone'] = ph
+    save_settings(s)
+    log('Phone service connected')
+    return phone_info()
+
+def phone_info():
+    ph = phone_settings()
+    on = bool(ph.get('on') and ph.get('phone'))
+    link = PHONE_URL + '/?k=' + urllib.parse.quote(ph['phone']) if on else ''
+    return {'on': on, 'url': PHONE_URL, 'link': link, 'qr': qr_svg(link) if link else ''}
+
+def phone_inbox():
+    if not phone_info()['on']:
+        return []
+    with PHONE_LOCK:
+        keys = json.loads(phone_call('GET', '/queue') or b'{}').get('keys') or []
+        groups = {}
+        for k in keys:
+            m = re.match('^q:([0-9A-Za-z_-]{10,60})_p(\\d\\d)([sa])(L?)\\.([a-z0-9]{2,5})$', k)
+            if m:
+                groups.setdefault(m.group(1), []).append((m.group(2), m.group(3), m.group(4), m.group(5), k))
+        out = []
+        for rid, parts in groups.items():
+            if not any((p[2] == 'L' for p in parts)):
+                continue
+            d = PHONE_DIR / rid
+            d.mkdir(parents=True, exist_ok=True)
+            files = []
+            for part, sym, _last, ext, key in sorted(parts):
+                data = phone_call('GET', '/item?key=' + urllib.parse.quote(key), timeout=120)
+                name = f'part{part}.{ext}'
+                (d / name).write_bytes(data)
+                files.append({'name': name, 'ext': ext, 'sym': sym == 's'})
+                phone_call('DELETE', '/item?key=' + urllib.parse.quote(key))
+            log('Phone request', rid, len(files), 'file(s)')
+            out.append({'id': rid, 'files': files})
+        return out
+
+def phone_status(rid, st):
+    if not re.match('^[0-9A-Za-z_-]{10,60}$', rid or ''):
+        raise UserError('Unknown request')
+    phone_call('POST', '/status/' + rid, json.dumps(st).encode())
+
+def mac_media_capture():
+    try:
+        import objc
+        from webview.platforms import cocoa
+        delegate = cocoa.BrowserView.BrowserDelegate
+        if not hasattr(delegate, 'webView_requestMediaCapturePermissionForOrigin_initiatedByFrame_type_decisionHandler_'):
+
+            def grant(self, webview_, origin, frame, kind, handler):
+                handler(1)
+            objc.classAddMethods(delegate, [objc.selector(grant, selector=b'webView:requestMediaCapturePermissionForOrigin:initiatedByFrame:type:decisionHandler:', signature=b'v@:@@@q@?')])
+        original = cocoa.BrowserView.__init__
+        if getattr(original, '_as3d_media', False):
+            return
+
+        def init(self, *a, **k):
+            original(self, *a, **k)
+            try:
+                prefs = self.webview.configuration().preferences()
+                for key, value in (('mediaDevicesEnabled', True), ('mediaStreamEnabled', True)):
+                    try:
+                        prefs.setValue_forKey_(value, key)
+                    except Exception:
+                        pass
+            except Exception as e:
+                log('Microphone in the web view not enabled:', e)
+        init._as3d_media = True
+        cocoa.BrowserView.__init__ = init
+    except Exception as e:
+        log('Microphone in the web view not enabled:', e)
+
+def mac_open_documents():
+    try:
+        import objc
+        import webview.platforms.cocoa as wc
+
+        def open_files(self, app, filenames):
+            for f in filenames:
+                queue_open(str(f))
+            try:
+                app.replyToOpenOrPrint_(0)
+            except Exception:
+                pass
+        candidates = [getattr(wc.BrowserView, n, None) for n in dir(wc.BrowserView)] + [getattr(wc, n, None) for n in dir(wc)]
+        targets = [c for c in candidates if isinstance(c, type) and hasattr(c, 'applicationShouldTerminate_')]
+        for cls in set(targets):
+            objc.classAddMethods(cls, [objc.selector(open_files, selector=b'application:openFiles:', signature=b'v@:@@')])
+        log('Open documents handler:', ', '.join((c.__name__ for c in set(targets))) or 'none')
+    except Exception:
+        log('Open documents handler not installed:', traceback.format_exc())
+MAC_APP_MENU = {'it': ('Informazioni su {app}', 'Servizi', 'Nascondi {app}', 'Nascondi altre', 'Mostra tutte', 'Esci da {app}', ('Taglia', 'Copia', 'Incolla', 'Seleziona tutto')), 'de': ('Über {app}', 'Dienste', '{app} ausblenden', 'Andere ausblenden', 'Alle einblenden', '{app} beenden', ('Ausschneiden', 'Kopieren', 'Einsetzen', 'Alles auswählen')), 'fr': ("À propos d'{app}", 'Services', 'Masquer {app}', 'Masquer les autres', 'Tout afficher', 'Quitter {app}', ('Couper', 'Copier', 'Coller', 'Tout sélectionner')), 'es': ('Acerca de {app}', 'Servicios', 'Ocultar {app}', 'Ocultar otros', 'Mostrar todo', 'Salir de {app}', ('Cortar', 'Copiar', 'Pegar', 'Seleccionar todo')), 'pt': ('Sobre o {app}', 'Serviços', 'Ocultar {app}', 'Ocultar Outros', 'Mostrar Tudo', 'Encerrar {app}', ('Recortar', 'Copiar', 'Colar', 'Selecionar Tudo')), 'ja': ('{app} について', 'サービス', '{app} を非表示', 'ほかを非表示', 'すべてを表示', '{app} を終了', ('カット', 'コピー', 'ペースト', 'すべてを選択')), 'en': ('About {app}', 'Services', 'Hide {app}', 'Hide Others', 'Show All', 'Quit {app}', ('Cut', 'Copy', 'Paste', 'Select All'))}
+EDIT_MENU_NAMES = {'Edit', 'Modifica', 'Bearbeiten', 'Édition', 'Edición', 'Editar', '編集'}
+
+def fix_mac_menu():
+    try:
+        lang = json.loads(MENU_FILE.read_text(encoding='utf-8')).get('lang', 'en') if MENU_FILE.exists() else 'en'
+    except Exception:
+        lang = 'en'
+    t = MAC_APP_MENU.get(lang, MAC_APP_MENU['en'])
+
+    def run():
+        try:
+            from AppKit import NSApp, NSMenuItem
+            main = NSApp.mainMenu()
+            if main is None:
+                return
+            for i in reversed(range(main.numberOfItems())):
+                item = main.itemAtIndex_(i)
+                sub = item.submenu()
+                if sub is None:
+                    continue
+                actions = [str(sub.itemAtIndex_(k).action() or '') for k in range(sub.numberOfItems())]
+                if i > 0 and actions and all((a in ('toggleFullScreen:', '') for a in actions)):
+                    main.removeItemAtIndex_(i)
+                    continue
+                if i == 1 or (i == 0 and 'terminate:' in actions):
+                    for k in range(sub.numberOfItems()):
+                        it = sub.itemAtIndex_(k)
+                        a = str(it.action() or '')
+                        new = {'orderFrontStandardAboutPanel:': t[0], 'hide:': t[2], 'hideOtherApplications:': t[3], 'unhideAllApplications:': t[4], 'terminate:': t[5]}.get(a)
+                        if new:
+                            it.setTitle_(new.format(app=APP_NAME))
+                        elif it.submenu() is not None and str(it.title()) == 'Services':
+                            it.setTitle_(t[1])
+                if {str(item.title() or ''), str(sub.title() or '')} & EDIT_MENU_NAMES and 'copy:' not in actions:
+                    sub.addItem_(NSMenuItem.separatorItem())
+                    for title, sel, key in zip(t[6], ('cut:', 'copy:', 'paste:', 'selectAll:'), ('x', 'c', 'v', 'a')):
+                        sub.addItem_(NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(title, sel, key))
+        except Exception:
+            log('Menu bar not adjusted:', traceback.format_exc())
+    try:
+        from PyObjCTools import AppHelper
+        AppHelper.callAfter(run)
+    except Exception:
+        log('Menu bar not adjusted:', traceback.format_exc())
+
+def stop_engines():
+    for job in list(JOBS.values()):
+        pr = getattr(job, 'proc', None)
+        if pr and pr.poll() is None:
+            job.cancelled = True
+            try:
+                pr.kill()
+            except Exception:
+                pass
+
+def wait_previous_instance():
+    pid = os.environ.pop('AUTOSCULPT_WAIT_PID', None)
+    if not (pid and IS_WIN):
+        return
+    try:
+        import ctypes
+        k32 = ctypes.windll.kernel32
+        h = k32.OpenProcess(1048576, False, int(pid))
+        if h:
+            k32.WaitForSingleObject(h, 10000)
+            k32.CloseHandle(h)
+    except Exception:
+        time.sleep(2)
+
+def main():
+    wait_previous_instance()
+    maybe_run_updated_copy()
+    remove_retired_engines()
+    adopt_autosculpt_data()
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--server-only', action='store_true')
+    a, rest = ap.parse_known_args()
+    paths = [str(Path(x).resolve()) for x in rest if Path(x).suffix.lower() in OPENABLE and Path(x).is_file()]
+    if IS_WIN and (not a.server_only) and hand_over_to_running_instance(paths):
+        return
+    for x in paths:
+        queue_open(x)
+    if not a.server_only:
+        try:
+            PID_FILE.write_text(str(os.getpid()))
+        except Exception:
+            pass
+    srv = start_server()
+    url = f'http://127.0.0.1:{srv.server_address[1]}/'
+    log(APP_NAME, VERSION, 'interface', ui_version(), 'on', url)
+    if a.server_only:
+        print('URL', url, flush=True)
+        print('TOKEN', TOKEN, flush=True)
+        try:
+            while True:
+                time.sleep(3600)
+        except KeyboardInterrupt:
+            return
+    import webview
+    try:
+        from Foundation import NSBundle
+        info = NSBundle.mainBundle().infoDictionary()
+        info['CFBundleName'] = APP_NAME
+        icon = os.environ.get('AUTOSCULPT_ICON')
+        if icon and Path(icon).exists():
+            from AppKit import NSApplication, NSImage
+            NSApplication.sharedApplication().setApplicationIconImage_(NSImage.alloc().initWithContentsOfFile_(icon))
+    except Exception:
+        pass
+    if IS_MAC:
+        mac_open_documents()
+        if microphone_allowed():
+            mac_media_capture()
+    bridge = Bridge()
+    try:
+        win = webview.create_window(APP_NAME, url, js_api=bridge, width=1440, height=900, min_size=(1024, 680), text_select=True, maximized=True)
+    except TypeError:
+        win = webview.create_window(APP_NAME, url, js_api=bridge, width=1440, height=900, min_size=(1024, 680), text_select=True)
+    bridge._win = win
+    QUIT['win'] = win
+
+    def on_closing():
+        if QUIT['dirty'] and (not QUIT['allow']):
+            threading.Thread(target=lambda: win.evaluate_js('window.AS_QUIT && window.AS_QUIT()'), daemon=True).start()
+            return False
+        return True
+    try:
+        win.events.closing += on_closing
+    except Exception as exc:
+        log('closing event', exc)
+    gallery_sync_later()
+    if IS_WIN:
+        try:
+            import ctypes
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID('SculptWorks.AutoSculptStudio')
+        except Exception:
+            pass
+    global NATIVE_MENU
+    menu = native_menu(bridge)
+    NATIVE_MENU = bool(menu)
+    try:
+        webview.start((lambda: [(time.sleep(d), fix_mac_menu()) for d in (1.0, 4.0, 8.0)]) if IS_MAC else None, private_mode=False, storage_path=str(SUPPORT / 'webview'), menu=menu)
+    except TypeError:
+        NATIVE_MENU = False
+        webview.start(private_mode=False, storage_path=str(SUPPORT / 'webview'))
+    finally:
+        stop_engines()
+if __name__ == '__main__':
+    main()
