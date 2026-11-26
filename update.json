@@ -1,17 +1,30 @@
 {
   "product": "AutoSculpt Studio",
-  "latest": "1.0.1",
-  "notes": "Two engines at once: the same pictures go to two engines, both models are kept and the one closer to the pictures is shown first.",
+  "latest": "1.0.2",
+  "notes": "New icon for AutoSculpt Studio.",
   "notes_i18n": {
-    "en": "Two engines at once: the same pictures go to two engines, both models are kept and the one closer to the pictures is shown first.",
-    "it": "Due motori insieme: le stesse immagini vanno a due motori, si tengono tutti e due i modelli e prima compare quello più vicino alle immagini.",
-    "de": "Zwei Engines gleichzeitig: dieselben Bilder gehen an zwei Engines, beide Modelle bleiben erhalten und das, das den Bildern näher ist, wird zuerst gezeigt.",
-    "fr": "Deux moteurs à la fois : les mêmes images vont à deux moteurs, les deux modèles sont gardés et le plus proche des images s'affiche en premier.",
-    "es": "Dos motores a la vez: las mismas imágenes van a dos motores, se guardan los dos modelos y primero aparece el más parecido a las imágenes.",
-    "pt": "Dois motores ao mesmo tempo: as mesmas imagens vão para dois motores, os dois modelos são mantidos e primeiro aparece o mais parecido com as imagens.",
-    "ja": "2 つのエンジンを同時に：同じ画像を 2 つのエンジンに送り、両方のモデルを保存して、画像に近いほうを先に表示します。"
+    "en": "New icon for AutoSculpt Studio.",
+    "it": "Nuova icona per AutoSculpt Studio.",
+    "de": "Neues Symbol für AutoSculpt Studio.",
+    "fr": "Nouvelle icône pour AutoSculpt Studio.",
+    "es": "Nuevo icono para AutoSculpt Studio.",
+    "pt": "Novo ícone para o AutoSculpt Studio.",
+    "ja": "AutoSculpt Studio の新しいアイコン。"
   },
   "history": [
+    {
+      "date": "2026-11-26T17:57:47Z",
+      "version": "1.0.2",
+      "notes": {
+        "en": "New icon for AutoSculpt Studio.",
+        "it": "Nuova icona per AutoSculpt Studio.",
+        "de": "Neues Symbol für AutoSculpt Studio.",
+        "fr": "Nouvelle icône pour AutoSculpt Studio.",
+        "es": "Nuevo icono para AutoSculpt Studio.",
+        "pt": "Novo ícone para o AutoSculpt Studio.",
+        "ja": "AutoSculpt Studio の新しいアイコン。"
+      }
+    },
     {
       "date": "2026-11-26T17:02:21Z",
       "version": "1.0.1",
@@ -40,12 +53,12 @@
     }
   ],
   "ui": {
-    "version": "1.0.1",
+    "version": "1.0.2",
     "files": [
       {
         "path": "AutoSculptStudio.html",
         "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/ui/AutoSculptStudio.html",
-        "sha256": "04cd24608216035918946b1a3b1e3e036e430f07d24a3892c2feea858cf2d9e7"
+        "sha256": "cf0db00c8b663e938ee552a38dd24dd029abf74f1a906fa0fb1dba6af06d1b27"
       }
     ]
   },
