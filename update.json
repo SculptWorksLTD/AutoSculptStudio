@@ -1,17 +1,30 @@
 {
   "product": "AutoSculpt Studio",
-  "latest": "1.0.4",
-  "notes": "Pictures without paying for the API: \"Copy and open Gemini\" copies the prompt and opens Gemini; paste or drag the picture you made there into AutoSculpt Studio and it builds the 3D model from its three views. Works from the phone too.",
+  "latest": "1.0.5",
+  "notes": "A second 3D engine on this computer: Fast 3D, free and offline, to compare two models from the same pictures. It needs a free Hugging Face account the first time. Powered by Stability AI.",
   "notes_i18n": {
-    "en": "Pictures without paying for the API: \"Copy and open Gemini\" copies the prompt and opens Gemini; paste or drag the picture you made there into AutoSculpt Studio and it builds the 3D model from its three views. Works from the phone too.",
-    "it": "Immagini senza pagare le API: «Copia e apri Gemini» copia il prompt e apre Gemini; incolla o trascina in AutoSculpt Studio l'immagine che hai fatto lì e il modello 3D si costruisce dalle sue tre viste. Funziona anche dal telefono.",
-    "de": "Bilder ohne bezahlte API: „Kopieren und Gemini öffnen“ kopiert den Prompt und öffnet Gemini; füge das dort erstellte Bild in AutoSculpt Studio ein oder ziehe es hinein, und das 3D-Modell entsteht aus seinen drei Ansichten. Geht auch vom Handy.",
-    "fr": "Des images sans payer l'API : « Copier et ouvrir Gemini » copie le prompt et ouvre Gemini ; colle ou fais glisser dans AutoSculpt Studio l'image faite là-bas et le modèle 3D se construit à partir de ses trois vues. Marche aussi depuis le téléphone.",
-    "es": "Imágenes sin pagar la API: «Copiar y abrir Gemini» copia el prompt y abre Gemini; pega o arrastra en AutoSculpt Studio la imagen que hiciste allí y el modelo 3D se construye con sus tres vistas. Funciona también desde el teléfono.",
-    "pt": "Imagens sem pagar a API: «Copiar e abrir o Gemini» copia o prompt e abre o Gemini; cole ou arraste no AutoSculpt Studio a imagem feita lá e o modelo 3D é construído a partir das três vistas. Funciona também pelo celular.",
-    "ja": "API の支払いなしで画像を作成：「コピーして Gemini を開く」でプロンプトをコピーして Gemini を開き、そこで作った画像を AutoSculpt Studio に貼り付けるかドラッグすると、3つのビューから 3D モデルを作ります。スマートフォンからも使えます。"
+    "en": "A second 3D engine on this computer: Fast 3D, free and offline, to compare two models from the same pictures. It needs a free Hugging Face account the first time. Powered by Stability AI.",
+    "it": "Un secondo motore 3D su questo computer: 3D veloce, gratis e senza internet, per confrontare due modelli dalle stesse immagini. La prima volta serve un account gratuito di Hugging Face. Powered by Stability AI.",
+    "de": "Eine zweite 3D-Engine auf diesem Computer: Schnelles 3D, kostenlos und offline, um zwei Modelle aus denselben Bildern zu vergleichen. Beim ersten Mal braucht es ein kostenloses Hugging-Face-Konto. Powered by Stability AI.",
+    "fr": "Un second moteur 3D sur cet ordinateur : 3D rapide, gratuit et hors ligne, pour comparer deux modèles à partir des mêmes images. La première fois, il faut un compte Hugging Face gratuit. Powered by Stability AI.",
+    "es": "Un segundo motor 3D en este ordenador: 3D rápido, gratis y sin internet, para comparar dos modelos de las mismas imágenes. La primera vez hace falta una cuenta gratuita de Hugging Face. Powered by Stability AI.",
+    "pt": "Um segundo motor 3D neste computador: 3D rápido, grátis e offline, para comparar dois modelos das mesmas imagens. Na primeira vez é preciso uma conta gratuita do Hugging Face. Powered by Stability AI.",
+    "ja": "このコンピューターに2つ目の3Dエンジン「高速3D」を追加：無料・オフラインで、同じ画像から2つのモデルを比較できます。初回のみ無料の Hugging Face アカウントが必要です。Powered by Stability AI."
   },
   "history": [
+    {
+      "date": "2026-11-26T19:45:59Z",
+      "version": "1.0.5",
+      "notes": {
+        "en": "A second 3D engine on this computer: Fast 3D, free and offline, to compare two models from the same pictures. It needs a free Hugging Face account the first time. Powered by Stability AI.",
+        "it": "Un secondo motore 3D su questo computer: 3D veloce, gratis e senza internet, per confrontare due modelli dalle stesse immagini. La prima volta serve un account gratuito di Hugging Face. Powered by Stability AI.",
+        "de": "Eine zweite 3D-Engine auf diesem Computer: Schnelles 3D, kostenlos und offline, um zwei Modelle aus denselben Bildern zu vergleichen. Beim ersten Mal braucht es ein kostenloses Hugging-Face-Konto. Powered by Stability AI.",
+        "fr": "Un second moteur 3D sur cet ordinateur : 3D rapide, gratuit et hors ligne, pour comparer deux modèles à partir des mêmes images. La première fois, il faut un compte Hugging Face gratuit. Powered by Stability AI.",
+        "es": "Un segundo motor 3D en este ordenador: 3D rápido, gratis y sin internet, para comparar dos modelos de las mismas imágenes. La primera vez hace falta una cuenta gratuita de Hugging Face. Powered by Stability AI.",
+        "pt": "Um segundo motor 3D neste computador: 3D rápido, grátis e offline, para comparar dois modelos das mesmas imagens. Na primeira vez é preciso uma conta gratuita do Hugging Face. Powered by Stability AI.",
+        "ja": "このコンピューターに2つ目の3Dエンジン「高速3D」を追加：無料・オフラインで、同じ画像から2つのモデルを比較できます。初回のみ無料の Hugging Face アカウントが必要です。Powered by Stability AI."
+      }
+    },
     {
       "date": "2026-11-26T18:35:53Z",
       "version": "1.0.4",
@@ -79,22 +92,22 @@
     }
   ],
   "ui": {
-    "version": "1.0.4",
+    "version": "1.0.5",
     "files": [
       {
         "path": "AutoSculptStudio.html",
         "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/ui/AutoSculptStudio.html",
-        "sha256": "7b6661eef9f004b23daaee983db296e8714149068be59712c4309addd1d0545c"
+        "sha256": "967183f635f12c311205edbb924cea7852558f6247867675e5715b806b904259"
       }
     ]
   },
   "app": {
-    "version": "1.0.2",
+    "version": "1.0.3",
     "files": [
       {
         "path": "main.py",
         "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/app/main.py",
-        "sha256": "f9275f195667267bb58e8264d0687053d18362264952025ba0646f6c37fba8ed"
+        "sha256": "cbbdd194ea7ebf1257c5c8f1ae48e5236b0e257fc498cde91d3403b733f5c57d"
       }
     ]
   },
@@ -152,6 +165,33 @@
           "path": "runner.py",
           "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/engines/meshy/runner.py",
           "sha256": "a9ca917b388e97cb755abd8ea5ea15318e47d29723c7000f4e1593327d5d5b7c"
+        }
+      ]
+    },
+    {
+      "id": "sf3d",
+      "name": "Stable Fast 3D",
+      "version": "1.0.0",
+      "files": [
+        {
+          "path": "engine.json",
+          "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/engines/sf3d/engine.json",
+          "sha256": "feca2632ca9075ac1b79373de652d9cb65077303b52267fcecead1cfb5587ff8"
+        },
+        {
+          "path": "runner.py",
+          "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/engines/sf3d/runner.py",
+          "sha256": "13c3422fa92da9934152bf0528568af564af222b751645a6a80696b3f1f636ac"
+        },
+        {
+          "path": "LICENSE.md",
+          "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/engines/sf3d/LICENSE.md",
+          "sha256": "a0f992849ce25def8e531884edd7adf3c00cb8d2d4c59e49f0cb02597c29066e"
+        },
+        {
+          "path": "NOTICE.txt",
+          "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/engines/sf3d/NOTICE.txt",
+          "sha256": "8098dfd7580a436ca8d0ca7f76edbc58aad56e771a4f13bb414df1cbd3bab84e"
         }
       ]
     },

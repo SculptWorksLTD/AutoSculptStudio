@@ -1,0 +1,20 @@
+# AutoSculpt Studio - checks a local engine on a clean Mac with an Apple chip. © 2026 Enrico Migliorati. All rights reserved.
+name: Engine check
+on:
+  push:
+    branches: [main]
+    paths: ['engines/sf3d/**', '.github/workflows/engine-check.yml', '.github/build/engine_check.py']
+  workflow_dispatch:
+jobs:
+  sf3d:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Stable Fast 3D
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python .github/build/engine_check.py engines/sf3d
