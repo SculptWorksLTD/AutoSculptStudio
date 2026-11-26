@@ -1,17 +1,30 @@
 {
   "product": "AutoSculpt Studio",
-  "latest": "1.0.0",
-  "notes": "First version of AutoSculpt Studio: 3D models from a description, photos, the phone or the gallery, sent to AutoSculpt 3D with one click.",
+  "latest": "1.0.1",
+  "notes": "Two engines at once: the same pictures go to two engines, both models are kept and the one closer to the pictures is shown first.",
   "notes_i18n": {
-    "en": "First version of AutoSculpt Studio: 3D models from a description, photos, the phone or the gallery, sent to AutoSculpt 3D with one click.",
-    "it": "Prima versione di AutoSculpt Studio: modelli 3D da una descrizione, da foto, dal telefono o dalla galleria, mandati ad AutoSculpt 3D con un clic.",
-    "de": "Erste Version von AutoSculpt Studio: 3D-Modelle aus einer Beschreibung, aus Fotos, vom Handy oder aus der Galerie, mit einem Klick an AutoSculpt 3D gesendet.",
-    "fr": "Première version d'AutoSculpt Studio : modèles 3D à partir d'une description, de photos, du téléphone ou de la galerie, envoyés à AutoSculpt 3D en un clic.",
-    "es": "Primera versión de AutoSculpt Studio: modelos 3D a partir de una descripción, de fotos, del teléfono o de la galería, enviados a AutoSculpt 3D con un clic.",
-    "pt": "Primeira versão do AutoSculpt Studio: modelos 3D a partir de uma descrição, de fotos, do celular ou da galeria, enviados ao AutoSculpt 3D com um clique.",
-    "ja": "AutoSculpt Studio の最初のバージョン：説明、写真、スマートフォン、ギャラリーから 3D モデルを作り、ワンクリックで AutoSculpt 3D に送ります。"
+    "en": "Two engines at once: the same pictures go to two engines, both models are kept and the one closer to the pictures is shown first.",
+    "it": "Due motori insieme: le stesse immagini vanno a due motori, si tengono tutti e due i modelli e prima compare quello più vicino alle immagini.",
+    "de": "Zwei Engines gleichzeitig: dieselben Bilder gehen an zwei Engines, beide Modelle bleiben erhalten und das, das den Bildern näher ist, wird zuerst gezeigt.",
+    "fr": "Deux moteurs à la fois : les mêmes images vont à deux moteurs, les deux modèles sont gardés et le plus proche des images s'affiche en premier.",
+    "es": "Dos motores a la vez: las mismas imágenes van a dos motores, se guardan los dos modelos y primero aparece el más parecido a las imágenes.",
+    "pt": "Dois motores ao mesmo tempo: as mesmas imagens vão para dois motores, os dois modelos são mantidos e primeiro aparece o mais parecido com as imagens.",
+    "ja": "2 つのエンジンを同時に：同じ画像を 2 つのエンジンに送り、両方のモデルを保存して、画像に近いほうを先に表示します。"
   },
   "history": [
+    {
+      "date": "2026-11-26T17:02:21Z",
+      "version": "1.0.1",
+      "notes": {
+        "en": "Two engines at once: the same pictures go to two engines, both models are kept and the one closer to the pictures is shown first.",
+        "it": "Due motori insieme: le stesse immagini vanno a due motori, si tengono tutti e due i modelli e prima compare quello più vicino alle immagini.",
+        "de": "Zwei Engines gleichzeitig: dieselben Bilder gehen an zwei Engines, beide Modelle bleiben erhalten und das, das den Bildern näher ist, wird zuerst gezeigt.",
+        "fr": "Deux moteurs à la fois : les mêmes images vont à deux moteurs, les deux modèles sont gardés et le plus proche des images s'affiche en premier.",
+        "es": "Dos motores a la vez: las mismas imágenes van a dos motores, se guardan los dos modelos y primero aparece el más parecido a las imágenes.",
+        "pt": "Dois motores ao mesmo tempo: as mesmas imagens vão para dois motores, os dois modelos são mantidos e primeiro aparece o mais parecido com as imagens.",
+        "ja": "2 つのエンジンを同時に：同じ画像を 2 つのエンジンに送り、両方のモデルを保存して、画像に近いほうを先に表示します。"
+      }
+    },
     {
       "date": "2026-11-26T16:18:01Z",
       "version": "1.0.0",
@@ -27,22 +40,22 @@
     }
   ],
   "ui": {
-    "version": "1.0.0",
+    "version": "1.0.1",
     "files": [
       {
         "path": "AutoSculptStudio.html",
         "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/ui/AutoSculptStudio.html",
-        "sha256": "61e6425edc93f52abeec8b40365a6712dd4cc81554c3c4df334d648024241cd8"
+        "sha256": "04cd24608216035918946b1a3b1e3e036e430f07d24a3892c2feea858cf2d9e7"
       }
     ]
   },
   "app": {
-    "version": "1.0.0",
+    "version": "1.0.1",
     "files": [
       {
         "path": "main.py",
         "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/app/main.py",
-        "sha256": "d2feadf8246df9d824da619856d909670b17c6f31e0559ce0f9b7fedd341c2b8"
+        "sha256": "b92cb97ed6812c9a7b084d90a55e2cab36a2b9833ab3a32d712bcb52164f53ea"
       }
     ]
   },

@@ -55,6 +55,9 @@ def clean_env(extra=None):
     env.update(extra or {})
     return env
 
+def other_app_env():
+    return {k: v for k, v in clean_env().items() if not k.startswith('AUTOSCULPT_')}
+
 def documents_dir():
     if IS_WIN:
         try:
@@ -1914,8 +1917,8 @@ def autosculpt_app():
         return None
     if IS_WIN:
         for d in (Path(os.environ.get('LOCALAPPDATA', '')) / 'Programs' / 'AutoSculpt 3D', Path(os.environ.get('ProgramFiles', 'C:/Program Files')) / 'AutoSculpt 3D'):
-            if (d / 'AutoSculpt3D.exe').exists():
-                return d / 'AutoSculpt3D.exe'
+            if (d / 'python' / 'AutoSculpt3D.exe').exists() and (d / 'app' / 'main.py').exists():
+                return d
     return None
 
 def adopt_autosculpt_data():
@@ -1955,7 +1958,7 @@ def send_to_autosculpt(path):
     if app is None:
         raise UserError('AutoSculpt 3D is not installed on this computer')
     if IS_MAC:
-        subprocess.Popen(['open', '-a', str(app), str(path)], env=clean_env())
+        subprocess.Popen(['open', '-a', str(app), str(path)], env=other_app_env())
         return 'opened'
     pid = autosculpt_support() / 'instance.pid'
     try:
@@ -1967,7 +1970,8 @@ def send_to_autosculpt(path):
         req.mkdir(parents=True, exist_ok=True)
         (req / f'{time.time_ns()}-studio.txt').write_text(str(path), encoding='utf-8')
         return 'sent'
-    subprocess.Popen([str(app), str(path)], env=clean_env(), **NO_WINDOW)
+    cmd = [str(app / 'python' / 'AutoSculpt3D.exe'), str(app / 'app' / 'main.py'), str(path)] if app.is_dir() else [str(app), str(path)]
+    subprocess.Popen(cmd, env=other_app_env(), cwd=str(app if app.is_dir() else app.parent), **NO_WINDOW)
     return 'opened'
 PHONE_URL = os.environ.get('AUTOSCULPT_PHONE_URL', 'https://autosculpt-studio.nerosdmf.workers.dev')
 PHONE_DIR = SUPPORT / 'phone'
