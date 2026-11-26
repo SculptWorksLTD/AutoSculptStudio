@@ -3,7 +3,7 @@ name: Engine check
 on:
   push:
     branches: [main]
-    paths: ['engines/sf3d/**', '.github/workflows/engine-check.yml', '.github/build/engine_check.py']
+    paths: ['engines/sf3d/**', '.github/build/sf3d-test/**', '.github/workflows/engine-check.yml', '.github/build/engine_check.py']
   workflow_dispatch:
 jobs:
   sf3d:
@@ -17,4 +17,4 @@ jobs:
       - name: Stable Fast 3D
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        run: python .github/build/engine_check.py engines/sf3d
+        run: python .github/build/engine_check.py ${{ hashFiles('.github/build/sf3d-test/runner.py') != '' && '.github/build/sf3d-test' || 'engines/sf3d' }}
