@@ -1,17 +1,30 @@
 {
   "product": "AutoSculpt Studio",
-  "latest": "1.0.8",
-  "notes": "New viewer tools: turn a model a quarter at a time (it reaches AutoSculpt 3D as you see it), show its faces, see the pictures it was made from and make it again from them with any engine.",
+  "latest": "1.0.9",
+  "notes": "More detailed models: the local engine now works at high quality by default, the correction with the views no longer smooths the model when it is not needed, and you are warned when the drawing touches the edge of the picture.",
   "notes_i18n": {
-    "en": "New viewer tools: turn a model a quarter at a time (it reaches AutoSculpt 3D as you see it), show its faces, see the pictures it was made from and make it again from them with any engine.",
-    "it": "Nuovi strumenti nel visore: gira il modello di un quarto alla volta (arriva in AutoSculpt 3D come lo vedi), mostra le facce, guarda le immagini da cui è nato e rifallo da quelle con qualsiasi motore.",
-    "de": "Neue Werkzeuge im Viewer: das Modell vierteldrehungsweise drehen (es kommt so in AutoSculpt 3D an, wie du es siehst), die Flächen zeigen, die Ausgangsbilder ansehen und daraus mit einer beliebigen Engine neu erstellen.",
-    "fr": "Nouveaux outils dans la visionneuse : tourner le modèle d'un quart à la fois (il arrive dans AutoSculpt 3D tel que tu le vois), afficher les faces, voir les images d'origine et le refaire à partir d'elles avec n'importe quel moteur.",
-    "es": "Nuevas herramientas en el visor: girar el modelo de un cuarto en cuarto (llega a AutoSculpt 3D como lo ves), mostrar las caras, ver las imágenes de origen y rehacerlo con cualquier motor.",
-    "pt": "Novas ferramentas no visualizador: girar o modelo um quarto de cada vez (chega ao AutoSculpt 3D como você vê), mostrar as faces, ver as imagens de origem e refazê-lo com qualquer motor.",
-    "ja": "ビューアーの新機能：モデルを90度ずつ回転（見たままの向きで AutoSculpt 3D に送られます）、面の表示、元の画像の確認、任意のエンジンでの作り直し。"
+    "en": "More detailed models: the local engine now works at high quality by default, the correction with the views no longer smooths the model when it is not needed, and you are warned when the drawing touches the edge of the picture.",
+    "it": "Modelli più dettagliati: il motore locale lavora di serie in qualità alta, la correzione con le viste non smussa più il modello quando non serve e vieni avvisato quando il disegno tocca il bordo dell'immagine.",
+    "de": "Detailliertere Modelle: die lokale Engine arbeitet standardmäßig in hoher Qualität, die Korrektur mit den Ansichten glättet das Modell nicht mehr unnötig, und du wirst gewarnt, wenn die Zeichnung den Bildrand berührt.",
+    "fr": "Modèles plus détaillés : le moteur local travaille par défaut en haute qualité, la correction avec les vues ne lisse plus le modèle sans raison et vous êtes averti quand le dessin touche le bord de l'image.",
+    "es": "Modelos más detallados: el motor local trabaja por defecto en calidad alta, la corrección con las vistas ya no suaviza el modelo sin necesidad y se avisa cuando el dibujo toca el borde de la imagen.",
+    "pt": "Modelos mais detalhados: o motor local trabalha por padrão em alta qualidade, a correção com as vistas não suaviza mais o modelo sem necessidade e você é avisado quando o desenho toca a borda da imagem.",
+    "ja": "より細かいモデル：ローカルエンジンは標準で高品質になり、ビューによる補正は不要なときにモデルを滑らかにしなくなりました。絵が画像の端に触れているときは警告します。"
   },
   "history": [
+    {
+      "date": "2026-11-27T12:28:54Z",
+      "version": "1.0.9",
+      "notes": {
+        "en": "More detailed models: the local engine now works at high quality by default, the correction with the views no longer smooths the model when it is not needed, and you are warned when the drawing touches the edge of the picture.",
+        "it": "Modelli più dettagliati: il motore locale lavora di serie in qualità alta, la correzione con le viste non smussa più il modello quando non serve e vieni avvisato quando il disegno tocca il bordo dell'immagine.",
+        "de": "Detailliertere Modelle: die lokale Engine arbeitet standardmäßig in hoher Qualität, die Korrektur mit den Ansichten glättet das Modell nicht mehr unnötig, und du wirst gewarnt, wenn die Zeichnung den Bildrand berührt.",
+        "fr": "Modèles plus détaillés : le moteur local travaille par défaut en haute qualité, la correction avec les vues ne lisse plus le modèle sans raison et vous êtes averti quand le dessin touche le bord de l'image.",
+        "es": "Modelos más detallados: el motor local trabaja por defecto en calidad alta, la corrección con las vistas ya no suaviza el modelo sin necesidad y se avisa cuando el dibujo toca el borde de la imagen.",
+        "pt": "Modelos mais detalhados: o motor local trabalha por padrão em alta qualidade, a correção com as vistas não suaviza mais o modelo sem necessidade e você é avisado quando o desenho toca a borda da imagem.",
+        "ja": "より細かいモデル：ローカルエンジンは標準で高品質になり、ビューによる補正は不要なときにモデルを滑らかにしなくなりました。絵が画像の端に触れているときは警告します。"
+      }
+    },
     {
       "date": "2026-11-27T11:53:16Z",
       "version": "1.0.8",
@@ -157,12 +170,12 @@
     }
   ],
   "ui": {
-    "version": "1.0.8",
+    "version": "1.0.9",
     "files": [
       {
         "path": "AutoSculptStudio.html",
         "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/ui/AutoSculptStudio.html",
-        "sha256": "189fba93878b1fc5d341a254f5a51c6b140ef48cc23dcc42d6c2fe8f22183770"
+        "sha256": "ff8fa21d91ac6ab3dd16d14f557adcce03eb4d8fa1ef95ec866c9401418dec71"
       }
     ]
   },
@@ -253,12 +266,12 @@
     {
       "id": "triposg",
       "name": "TripoSG",
-      "version": "1.0.5",
+      "version": "1.0.6",
       "files": [
         {
           "path": "engine.json",
           "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/engines/triposg/engine.json",
-          "sha256": "11a423a812d8381e69bfc25656825b6d64cfe454f9eb548254ac15a32d4a4def"
+          "sha256": "30b0a624b55172a7528be92e6e2360e30b3e18024ee58f97254c1e7a25130f5e"
         },
         {
           "path": "runner.py",
