@@ -1,17 +1,30 @@
 {
   "product": "AutoSculpt Studio",
-  "latest": "1.0.6",
-  "notes": "The fast 3D engine has been removed: its files are deleted from this computer by themselves.",
+  "latest": "1.0.7",
+  "notes": "The 3D engine on this computer now starts from the three-quarter view of the reference sheet, which shows front and side together: better depth. The model is then corrected with all three views and turned with its front towards you.",
   "notes_i18n": {
-    "en": "The fast 3D engine has been removed: its files are deleted from this computer by themselves.",
-    "it": "Tolto il motore 3D veloce: i suoi file vengono cancellati da soli da questo computer.",
-    "de": "Die schnelle 3D-Engine wurde entfernt: Ihre Dateien werden automatisch von diesem Computer gelöscht.",
-    "fr": "Le moteur 3D rapide a été retiré : ses fichiers sont supprimés automatiquement de cet ordinateur.",
-    "es": "Se ha quitado el motor 3D rápido: sus archivos se borran solos de este ordenador.",
-    "pt": "O motor 3D rápido foi removido: seus arquivos são apagados sozinhos deste computador.",
-    "ja": "高速3Dエンジンを削除しました。ファイルはこのコンピューターから自動的に削除されます。"
+    "en": "The 3D engine on this computer now starts from the three-quarter view of the reference sheet, which shows front and side together: better depth. The model is then corrected with all three views and turned with its front towards you.",
+    "it": "Il motore 3D su questo computer ora parte dalla vista di tre quarti della scheda, che mostra insieme fronte e fianco: profondità migliore. Poi il modello viene corretto con tutte e tre le viste e girato con il fronte verso di te.",
+    "de": "Die 3D-Engine auf diesem Computer startet jetzt von der Dreiviertelansicht des Blatts, die Vorder- und Seitenansicht zusammen zeigt: bessere Tiefe. Danach wird das Modell mit allen drei Ansichten korrigiert und mit der Vorderseite zu dir gedreht.",
+    "fr": "Le moteur 3D de cet ordinateur part maintenant de la vue de trois quarts de la planche, qui montre la face et le côté ensemble : meilleure profondeur. Le modèle est ensuite corrigé avec les trois vues et tourné face à toi.",
+    "es": "El motor 3D de este ordenador ahora parte de la vista de tres cuartos de la hoja, que muestra frente y lado a la vez: mejor profundidad. Luego el modelo se corrige con las tres vistas y se gira con el frente hacia ti.",
+    "pt": "O motor 3D deste computador agora parte da vista de três quartos da folha, que mostra frente e lado juntos: melhor profundidade. Depois o modelo é corrigido com as três vistas e girado com a frente para você.",
+    "ja": "このコンピューターの3Dエンジンは、正面と側面を同時に示すシートの斜め45度のビューから作成するようになりました。奥行きがより正確になります。その後3つのビューすべてでモデルを補正し、正面がこちらを向くように回転します。"
   },
   "history": [
+    {
+      "date": "2026-11-27T06:44:01Z",
+      "version": "1.0.7",
+      "notes": {
+        "en": "The 3D engine on this computer now starts from the three-quarter view of the reference sheet, which shows front and side together: better depth. The model is then corrected with all three views and turned with its front towards you.",
+        "it": "Il motore 3D su questo computer ora parte dalla vista di tre quarti della scheda, che mostra insieme fronte e fianco: profondità migliore. Poi il modello viene corretto con tutte e tre le viste e girato con il fronte verso di te.",
+        "de": "Die 3D-Engine auf diesem Computer startet jetzt von der Dreiviertelansicht des Blatts, die Vorder- und Seitenansicht zusammen zeigt: bessere Tiefe. Danach wird das Modell mit allen drei Ansichten korrigiert und mit der Vorderseite zu dir gedreht.",
+        "fr": "Le moteur 3D de cet ordinateur part maintenant de la vue de trois quarts de la planche, qui montre la face et le côté ensemble : meilleure profondeur. Le modèle est ensuite corrigé avec les trois vues et tourné face à toi.",
+        "es": "El motor 3D de este ordenador ahora parte de la vista de tres cuartos de la hoja, que muestra frente y lado a la vez: mejor profundidad. Luego el modelo se corrige con las tres vistas y se gira con el frente hacia ti.",
+        "pt": "O motor 3D deste computador agora parte da vista de três quartos da folha, que mostra frente e lado juntos: melhor profundidade. Depois o modelo é corrigido com as três vistas e girado com a frente para você.",
+        "ja": "このコンピューターの3Dエンジンは、正面と側面を同時に示すシートの斜め45度のビューから作成するようになりました。奥行きがより正確になります。その後3つのビューすべてでモデルを補正し、正面がこちらを向くように回転します。"
+      }
+    },
     {
       "date": "2026-11-27T00:17:35Z",
       "version": "1.0.6",
@@ -131,12 +144,12 @@
     }
   ],
   "ui": {
-    "version": "1.0.6",
+    "version": "1.0.7",
     "files": [
       {
         "path": "AutoSculptStudio.html",
         "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/ui/AutoSculptStudio.html",
-        "sha256": "25fc013add1df027306a75243dd5c1c6b71d72e7b2f661cd7b1eedf08d2addfb"
+        "sha256": "252ac1e0abc96d661ffcdbc036d714cae62cbfd644afde5415db08693738a5e0"
       }
     ]
   },
