@@ -1,17 +1,30 @@
 {
   "product": "AutoSculpt Studio",
-  "latest": "1.0.5",
-  "notes": "Fast 3D on this computer: the models now come out standing, like those of the other engine.",
+  "latest": "1.0.6",
+  "notes": "The fast 3D engine has been removed: its files are deleted from this computer by themselves.",
   "notes_i18n": {
-    "en": "Fast 3D on this computer: the models now come out standing, like those of the other engine.",
-    "it": "3D veloce su questo computer: i modelli ora escono in piedi, come quelli dell'altro motore.",
-    "de": "Schnelles 3D auf diesem Computer: Die Modelle stehen jetzt aufrecht, wie die der anderen Engine.",
-    "fr": "3D rapide sur cet ordinateur : les modèles sortent maintenant debout, comme ceux de l'autre moteur.",
-    "es": "3D rápido en este ordenador: los modelos ahora salen de pie, como los del otro motor.",
-    "pt": "3D rápido neste computador: os modelos agora saem em pé, como os do outro motor.",
-    "ja": "このコンピューターで高速3D：もう一方のエンジンと同じく、モデルが立った向きで出力されるようになりました。"
+    "en": "The fast 3D engine has been removed: its files are deleted from this computer by themselves.",
+    "it": "Tolto il motore 3D veloce: i suoi file vengono cancellati da soli da questo computer.",
+    "de": "Die schnelle 3D-Engine wurde entfernt: Ihre Dateien werden automatisch von diesem Computer gelöscht.",
+    "fr": "Le moteur 3D rapide a été retiré : ses fichiers sont supprimés automatiquement de cet ordinateur.",
+    "es": "Se ha quitado el motor 3D rápido: sus archivos se borran solos de este ordenador.",
+    "pt": "O motor 3D rápido foi removido: seus arquivos são apagados sozinhos deste computador.",
+    "ja": "高速3Dエンジンを削除しました。ファイルはこのコンピューターから自動的に削除されます。"
   },
   "history": [
+    {
+      "date": "2026-11-27T00:17:35Z",
+      "version": "1.0.6",
+      "notes": {
+        "en": "The fast 3D engine has been removed: its files are deleted from this computer by themselves.",
+        "it": "Tolto il motore 3D veloce: i suoi file vengono cancellati da soli da questo computer.",
+        "de": "Die schnelle 3D-Engine wurde entfernt: Ihre Dateien werden automatisch von diesem Computer gelöscht.",
+        "fr": "Le moteur 3D rapide a été retiré : ses fichiers sont supprimés automatiquement de cet ordinateur.",
+        "es": "Se ha quitado el motor 3D rápido: sus archivos se borran solos de este ordenador.",
+        "pt": "O motor 3D rápido foi removido: seus arquivos são apagados sozinhos deste computador.",
+        "ja": "高速3Dエンジンを削除しました。ファイルはこのコンピューターから自動的に削除されます。"
+      }
+    },
     {
       "date": "2026-11-26T22:04:10Z",
       "version": "1.0.5",
@@ -118,22 +131,22 @@
     }
   ],
   "ui": {
-    "version": "1.0.5",
+    "version": "1.0.6",
     "files": [
       {
         "path": "AutoSculptStudio.html",
         "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/ui/AutoSculptStudio.html",
-        "sha256": "967183f635f12c311205edbb924cea7852558f6247867675e5715b806b904259"
+        "sha256": "25fc013add1df027306a75243dd5c1c6b71d72e7b2f661cd7b1eedf08d2addfb"
       }
     ]
   },
   "app": {
-    "version": "1.0.3",
+    "version": "1.0.4",
     "files": [
       {
         "path": "main.py",
         "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/app/main.py",
-        "sha256": "cbbdd194ea7ebf1257c5c8f1ae48e5236b0e257fc498cde91d3403b733f5c57d"
+        "sha256": "537ae4d74eeb320ee63adc210c7577a13ef5159a3cb33612cb87109794482f9c"
       }
     ]
   },
@@ -191,33 +204,6 @@
           "path": "runner.py",
           "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/engines/meshy/runner.py",
           "sha256": "a9ca917b388e97cb755abd8ea5ea15318e47d29723c7000f4e1593327d5d5b7c"
-        }
-      ]
-    },
-    {
-      "id": "sf3d",
-      "name": "Stable Fast 3D",
-      "version": "1.0.2",
-      "files": [
-        {
-          "path": "engine.json",
-          "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/engines/sf3d/engine.json",
-          "sha256": "90801ebb28b4b0aaa1f4a1f0c80aa8ff2e8415a13fd0b57e5c98c2c22da526eb"
-        },
-        {
-          "path": "runner.py",
-          "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/engines/sf3d/runner.py",
-          "sha256": "d7bd207fd077d554f397d56aaf85ddb2078846e085ce2a020e51672417cfa538"
-        },
-        {
-          "path": "LICENSE.md",
-          "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/engines/sf3d/LICENSE.md",
-          "sha256": "a0f992849ce25def8e531884edd7adf3c00cb8d2d4c59e49f0cb02597c29066e"
-        },
-        {
-          "path": "NOTICE.txt",
-          "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/engines/sf3d/NOTICE.txt",
-          "sha256": "8098dfd7580a436ca8d0ca7f76edbc58aad56e771a4f13bb414df1cbd3bab84e"
         }
       ]
     },

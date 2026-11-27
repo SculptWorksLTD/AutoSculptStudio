@@ -282,7 +282,7 @@ def sha256(path):
         for chunk in iter(lambda: fh.read(1 << 20), b''):
             h.update(chunk)
     return h.hexdigest()
-RETIRED_ENGINES = {'triposr', 'ssd1b', 'fluxlocal', 'fluxcuda', 'mvadapter', 'whisper', 'falflux', 'falviews', 'falwhisper'}
+RETIRED_ENGINES = {'sf3d', 'triposr', 'ssd1b', 'fluxlocal', 'fluxcuda', 'mvadapter', 'whisper', 'falflux', 'falviews', 'falwhisper'}
 APPLE_CHIP = IS_MAC and platform.machine() == 'arm64'
 _NVIDIA = []
 
@@ -308,6 +308,8 @@ def remove_retired_engines():
                 shutil.rmtree(d, ignore_errors=True)
                 log('Removed the retired engine', eid)
     keys = load_keys()
+    if keys.get('sf3d'):
+        save_key('sf3d', '')
     if any((k.startswith('lib:') for k in keys)):
         for k in [k for k in keys if k.startswith('lib:')]:
             save_key(k, '')
@@ -589,7 +591,7 @@ def engine_status(spec):
         info = json.loads((home / 'installed.json').read_text())
     except Exception:
         pass
-    return {'id': spec['id'], 'name': spec['name'], 'version': spec.get('version'), 'description': spec.get('description'), 'license': spec.get('license'), 'download_gb': spec.get('download_gb'), 'minutes': spec.get('minutes'), 'options': spec.get('options', []), 'installed': bool(info), 'installed_version': info.get('version'), 'type': 'local', 'kind': spec.get('kind', 'photo3d'), 'kinds': spec.get('kinds') or [spec.get('kind', 'photo3d')], 'order': spec.get('order', 50), 'max_images': 1, 'hf_gated': spec.get('hf_gated'), 'key_set': bool(load_keys().get(spec['id'])) if spec.get('hf_gated') else None, 'update': bool(info) and vtuple(spec.get('install_version', spec.get('version'))) > vtuple(info.get('version'))}
+    return {'id': spec['id'], 'name': spec['name'], 'version': spec.get('version'), 'description': spec.get('description'), 'license': spec.get('license'), 'download_gb': spec.get('download_gb'), 'minutes': spec.get('minutes'), 'options': spec.get('options', []), 'installed': bool(info), 'installed_version': info.get('version'), 'type': 'local', 'kind': spec.get('kind', 'photo3d'), 'kinds': spec.get('kinds') or [spec.get('kind', 'photo3d')], 'order': spec.get('order', 50), 'max_images': 1, 'update': bool(info) and vtuple(spec.get('install_version', spec.get('version'))) > vtuple(info.get('version'))}
 
 def copy_runner(spec, home):
     src, dst = (Path(spec['_dir']) / spec['runner'], home / spec['runner'])
@@ -626,13 +628,6 @@ def venv_python(home):
 
 def install_engine(job, spec):
     eid, home = (spec['id'], engine_home(spec['id']))
-    hf_env = {'HF_HUB_DISABLE_TELEMETRY': '1', 'HF_HUB_ENABLE_HF_TRANSFER': '0'}
-    gated = spec.get('hf_gated')
-    if gated:
-        token = load_keys().get(eid, '')
-        if not token:
-            raise UserError('{name} needs your Hugging Face access code: add it in the engine window', name=spec['name'])
-        hf_env['HF_TOKEN'] = token
     home.mkdir(parents=True, exist_ok=True)
     py = venv_python(home)
     steps = spec.get('steps', [])
@@ -727,13 +722,11 @@ def install_engine(job, spec):
         code = "import sys\nfrom huggingface_hub import hf_hub_download\nrepo, dest = sys.argv[1], sys.argv[2]\nimport time\nfor i, f in enumerate(sys.argv[3:]):\n    print('FILE', i, f, flush=True)\n    for t in range(4):\n        try:\n            hf_hub_download(repo, f, local_dir=dest); break\n        except Exception as e:\n            print('RETRY', t + 1, e, flush=True)\n            if t == 3: raise\n            time.sleep(5 * (t + 1))\n"
         stop = watch_weights(k)
         try:
-            rc = stream(job, [py, '-c', code, w['hf_repo'], home / 'weights', *w['files']], env=hf_env, on_line=lambda l: job.add_log('Downloading ' + l.split(' ', 2)[-1]) if l.startswith('FILE') else None)
+            rc = stream(job, [py, '-c', code, w['hf_repo'], home / 'weights', *w['files']], env={'HF_HUB_DISABLE_TELEMETRY': '1', 'HF_HUB_ENABLE_HF_TRANSFER': '0', 'HF_HOME': str(home / 'hf')}, on_line=lambda l: job.add_log('Downloading ' + l.split(' ', 2)[-1]) if l.startswith('FILE') else None)
         finally:
             stop.set()
         if rc != 0:
             tail = ' / '.join(job.log[-3:])
-            if gated and re.search('401|403|gated|restricted|Unauthorized|awaiting a review|authenticated', ' '.join(job.log[-30:]), re.I):
-                raise UserError('Hugging Face did not allow the download: open the model page, accept the conditions with your account, check the access code, then try again')
             raise UserError('Downloading the weights failed: {detail}', detail=tail or '-')
     pre = spec.get('prefetch_hf', [])
     if pre:
