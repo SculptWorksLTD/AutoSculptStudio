@@ -305,8 +305,8 @@ def text_body(instruction, text, json_out=False):
 
 def image_body(text, reference=None, aspect='1:1'):
     parts = [{'text': text}]
-    if reference is not None:
-        parts.append({'inline_data': {'mime_type': mime_of(reference), 'data': base64.b64encode(reference).decode()}})
+    for r in reference if isinstance(reference, list) else [reference] if reference is not None else []:
+        parts.append({'inline_data': {'mime_type': mime_of(r), 'data': base64.b64encode(r).decode()}})
     return {'contents': [{'role': 'user', 'parts': parts}], 'generationConfig': {'responseModalities': ['IMAGE'], 'imageConfig': {'aspectRatio': aspect}}}
 
 def mime_of(data):
@@ -343,9 +343,11 @@ def main():
     ap.add_argument('--prompt-file', default='')
     ap.add_argument('--output-dir', default='')
     ap.add_argument('--image', default='')
+    ap.add_argument('--ref', action='append', default=[])
     ap.add_argument('--count', type=int, default=1)
     ap.add_argument('--lang', default='en')
     ap.add_argument('--symmetric', default='0')
+    ap.add_argument('--pet', default='0')
     ap.add_argument('--work', default='.')
     a = ap.parse_args()
     key = os.environ.get('AUTOSCULPT_API_KEY', '')
@@ -359,14 +361,15 @@ def main():
                 raise Fail('Write a description of the subject')
             if a.task == 'prompt':
                 say('PROGRESS', '0.1', '{service} is writing the prompt', service=SERVICE)
+                extra = ' ' + P['pet_subject'] if a.pet == '1' else ''
                 if a.symmetric == 'auto':
-                    reply = ask_text(key, text_body(P['subject'] + ' ' + P['subject_auto'], 'DESCRIPTION:\n' + text))
+                    reply = ask_text(key, text_body(P['subject'] + extra + ' ' + P['subject_auto'], 'DESCRIPTION:\n' + text))
                     m = re.match('\\s*\\**\\s*SYMMETRIC\\s*:\\s*\\**\\s*(yes|no)\\b\\**', reply, re.I)
                     sym = not m or m.group(1).lower() == 'yes'
                     reply = reply[m.end():] if m else reply
                 else:
                     sym = a.symmetric == '1'
-                    reply = ask_text(key, text_body(P['subject'] + ' ' + P['subject_symmetric' if sym else 'subject_asymmetric'], 'DESCRIPTION:\n' + text))
+                    reply = ask_text(key, text_body(P['subject'] + extra + ' ' + P['subject_symmetric' if sym else 'subject_asymmetric'], 'DESCRIPTION:\n' + text))
                 subject = ' '.join(reply.split()).strip().rstrip('.')
                 if not subject:
                     raise Fail('{service} gave an answer that is not readable: try again', service=SERVICE)
@@ -430,6 +433,12 @@ def main():
             if not prompt:
                 raise Fail('Write a description of the subject')
             n = max(1, min(a.count, 6))
+            refs = []
+            for rp in a.ref[:4]:
+                with open(rp, 'rb') as f:
+                    refs.append(f.read())
+            if refs:
+                prompt = P['pet'] + '\n\n' + prompt
             say('PROGRESS', '0.05', '{service} is drawing the pictures', service=SERVICE)
             done = [0]
 
@@ -437,7 +446,7 @@ def main():
 
                 def fn():
                     t = P['image'].replace('{prompt}', prompt) + ('\n' + P['image_variant'].replace('{n}', str(i + 1)) if i else '')
-                    img = image_of(ask(image_models(key), key, image_body(t, aspect=P.get('image_aspect', '1:1')), IMAGE_WAIT))
+                    img = image_of(ask(image_models(key), key, image_body(t, refs or None, aspect=P.get('image_aspect', '1:1')), IMAGE_WAIT))
                     p = os.path.join(a.output_dir, f'image{i + 1}.png')
                     save_picture(img, p)
                     with SAY_LOCK:

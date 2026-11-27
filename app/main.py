@@ -765,7 +765,7 @@ def install_engine(job, spec):
     job.update(1, 'Engine installed')
     job.result = {'engine': eid}
 
-def run_text2image(job, spec, prompt, lang, count, options, reference=None):
+def run_text2image(job, spec, prompt, lang, count, options, reference=None, refs=None):
     out = job.dir / 'images'
     pf = job.dir / 'prompt.txt'
     pf.write_text(prompt, encoding='utf-8')
@@ -787,6 +787,10 @@ def run_text2image(job, spec, prompt, lang, count, options, reference=None):
         ref = job.dir / 'reference.png'
         ref.write_bytes(reference)
         cmd += ['--image', ref]
+    for i, data in enumerate(refs or []):
+        rp = job.dir / f'ref{i + 1}.jpg'
+        rp.write_bytes(data)
+        cmd += ['--ref', rp]
     for o in spec.get('options', []):
         if o['id'] in options:
             cmd += ['--' + o['id'], str(options[o['id']])]
@@ -832,7 +836,7 @@ def run_speech2text(job, spec, wav, lang):
         raise UserError('The engine stopped: {detail}', detail='-')
     job.result = {'text': out.read_text(encoding='utf-8').strip()}
 
-def run_text2text(job, spec, task, text, context, symmetric=False):
+def run_text2text(job, spec, task, text, context, symmetric=False, pet=False):
     key = load_keys().get(spec.get('key_engine', spec['id']))
     if not key:
         raise UserError('No API key for {name}: add it in Tools → Engines and online services', name=spec['name'])
@@ -844,6 +848,8 @@ def run_text2text(job, spec, task, text, context, symmetric=False):
         cmd += ['--context-file', ctx]
     if symmetric:
         cmd += ['--symmetric', 'auto' if symmetric == 'auto' else '1']
+    if pet:
+        cmd += ['--pet', '1']
     errors = []
     rc = stream(job, cmd, env={'AUTOSCULPT_API_KEY': key}, on_line=lambda l: parse_runner_line(job, l, errors))
     if job.cancelled:
@@ -1507,11 +1513,17 @@ class Handler(BaseHTTPRequestHandler):
                 spec = engine_specs().get(b.get('engine') or '')
                 if not spec or not has_kind(spec, 'text2image'):
                     return self.send_json({'error': 'unknown engine'}, 404)
-                prompt = str(b.get('prompt') or '').strip()[:600]
+                prompt = str(b.get('prompt') or '').strip()[:4000]
                 if not prompt:
                     return self.send_json({'error': 'Write a description of the subject'}, 400)
+                refs = []
+                for src in (b.get('refs') or [])[:4]:
+                    try:
+                        refs.append(base64.b64decode(str(src).split(',', 1)[1]))
+                    except Exception:
+                        return self.send_json({'error': 'invalid image'}, 400)
                 job = Job('text2image', 'Description to pictures')
-                run_job(job, lambda j: run_text2image(j, spec, prompt, str(b.get('lang') or 'en')[:5], max(1, min(int(b.get('count') or 4), 6)), b.get('options') or {}))
+                run_job(job, lambda j: run_text2image(j, spec, prompt, str(b.get('lang') or 'en')[:5], max(1, min(int(b.get('count') or 4), 6)), b.get('options') or {}, refs=refs))
                 return self.send_json(job.as_dict())
             if path == '/api/multiview':
                 spec = engine_specs().get(b.get('engine') or '')
@@ -1540,7 +1552,7 @@ class Handler(BaseHTTPRequestHandler):
                     return self.send_json({'error': 'Write a description of the subject'}, 400)
                 context = str(b.get('context') or '')[:60000] if task == 'metalwork' else ''
                 job = Job('text2text', 'Description to text')
-                run_job(job, lambda j: run_text2text(j, spec, task, text, context, symmetric='auto' if b.get('symmetric') in (None, 'auto') else bool(b.get('symmetric'))))
+                run_job(job, lambda j: run_text2text(j, spec, task, text, context, symmetric='auto' if b.get('symmetric') in (None, 'auto') else bool(b.get('symmetric')), pet=bool(b.get('pet'))))
                 return self.send_json(job.as_dict())
             if path == '/api/speech2text':
                 spec = engine_specs().get(b.get('engine') or '')

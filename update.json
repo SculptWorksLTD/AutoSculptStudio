@@ -1,17 +1,30 @@
 {
   "product": "AutoSculpt Studio",
-  "latest": "1.0.11",
-  "notes": "New: outlines of the pictures laid over the model (where it is too thick or too thin), three variants of a description to choose from, the credit left on Meshy and Tripo before ordering, «Clean up» (stand it up, remove the base, close the holes), and night jobs: a queue of subjects that are ready in the morning.",
+  "latest": "1.0.12",
+  "notes": "New: «Your pet in steel» — from 1 to 4 photos of a dog, a cat, a horse or another animal, the sculpture of that animal, in the pose you choose. Long descriptions are no longer cut short.",
   "notes_i18n": {
-    "en": "New: outlines of the pictures laid over the model (where it is too thick or too thin), three variants of a description to choose from, the credit left on Meshy and Tripo before ordering, «Clean up» (stand it up, remove the base, close the holes), and night jobs: a queue of subjects that are ready in the morning.",
-    "it": "Novità: sagome delle immagini sovrapposte al modello (dove è troppo spesso o troppo sottile), tre varianti di una descrizione tra cui scegliere, il credito residuo di Meshy e Tripo prima di ordinare, «Pulisci» (raddrizza, togli la base, chiudi i buchi) e i lavori di notte: una coda di soggetti pronti al mattino.",
-    "de": "Neu: Umrisse der Bilder über dem Modell (wo es zu dick oder zu dünn ist), drei Varianten einer Beschreibung zur Auswahl, das Restguthaben bei Meshy und Tripo vor der Bestellung, «Bereinigen» (aufrichten, Sockel entfernen, Löcher schließen) und Nachtaufträge: eine Warteschlange von Motiven, am Morgen fertig.",
-    "fr": "Nouveautés : contours des images posés sur le modèle (là où il est trop épais ou trop mince), trois variantes d'une description au choix, le crédit restant chez Meshy et Tripo avant de commander, « Nettoyer » (redresser, retirer le socle, fermer les trous) et les travaux de nuit : une file de sujets prêts le matin.",
-    "es": "Novedades: siluetas de las imágenes sobre el modelo (donde es demasiado grueso o fino), tres variantes de una descripción para elegir, el crédito restante de Meshy y Tripo antes de pedir, «Limpiar» (enderezar, quitar la base, cerrar agujeros) y los trabajos nocturnos: una cola de temas listos por la mañana.",
-    "pt": "Novidades: silhuetas das imagens sobre o modelo (onde está grosso ou fino demais), três variantes de uma descrição à escolha, o crédito restante na Meshy e na Tripo antes de encomendar, «Limpar» (endireitar, remover a base, fechar buracos) e os trabalhos noturnos: uma fila de temas prontos de manhã.",
-    "ja": "新機能：モデルに重ねた画像の輪郭（太すぎ・細すぎの箇所）、説明から3つのバリエーションを選択、注文前にMeshyとTripoの残りクレジットを表示、「クリーンアップ」（立たせる・台座除去・穴埋め）、夜間ジョブ：朝には完成する題材のキュー。"
+    "en": "New: «Your pet in steel» — from 1 to 4 photos of a dog, a cat, a horse or another animal, the sculpture of that animal, in the pose you choose. Long descriptions are no longer cut short.",
+    "it": "Novità: «Il tuo animale in acciaio» — da 1 a 4 foto di un cane, un gatto, un cavallo o un altro animale, la scultura di quell'animale nella posa che scegli. Le descrizioni lunghe non vengono più troncate.",
+    "de": "Neu: «Dein Haustier aus Stahl» — aus 1 bis 4 Fotos eines Hundes, einer Katze, eines Pferdes oder eines anderen Tieres die Skulptur dieses Tieres in der gewählten Pose. Lange Beschreibungen werden nicht mehr abgeschnitten.",
+    "fr": "Nouveau : « Votre animal en acier » — à partir de 1 à 4 photos d'un chien, d'un chat, d'un cheval ou d'un autre animal, la sculpture de cet animal dans la pose choisie. Les longues descriptions ne sont plus coupées.",
+    "es": "Novedad: «Tu mascota en acero» — de 1 a 4 fotos de un perro, un gato, un caballo u otro animal, la escultura de ese animal en la pose que elijas. Las descripciones largas ya no se cortan.",
+    "pt": "Novidade: «O seu animal em aço» — de 1 a 4 fotos de um cão, um gato, um cavalo ou outro animal, a escultura desse animal na pose que escolher. As descrições longas já não são cortadas.",
+    "ja": "新機能：「あなたのペットを鋼で」— 犬・猫・馬などの写真 1〜4 枚から、選んだポーズでその動物の彫刻を作ります。長い説明が途中で切れなくなりました。"
   },
   "history": [
+    {
+      "date": "2026-11-27T19:10:39Z",
+      "version": "1.0.12",
+      "notes": {
+        "en": "New: «Your pet in steel» — from 1 to 4 photos of a dog, a cat, a horse or another animal, the sculpture of that animal, in the pose you choose. Long descriptions are no longer cut short.",
+        "it": "Novità: «Il tuo animale in acciaio» — da 1 a 4 foto di un cane, un gatto, un cavallo o un altro animale, la scultura di quell'animale nella posa che scegli. Le descrizioni lunghe non vengono più troncate.",
+        "de": "Neu: «Dein Haustier aus Stahl» — aus 1 bis 4 Fotos eines Hundes, einer Katze, eines Pferdes oder eines anderen Tieres die Skulptur dieses Tieres in der gewählten Pose. Lange Beschreibungen werden nicht mehr abgeschnitten.",
+        "fr": "Nouveau : « Votre animal en acier » — à partir de 1 à 4 photos d'un chien, d'un chat, d'un cheval ou d'un autre animal, la sculpture de cet animal dans la pose choisie. Les longues descriptions ne sont plus coupées.",
+        "es": "Novedad: «Tu mascota en acero» — de 1 a 4 fotos de un perro, un gato, un caballo u otro animal, la escultura de ese animal en la pose que elijas. Las descripciones largas ya no se cortan.",
+        "pt": "Novidade: «O seu animal em aço» — de 1 a 4 fotos de um cão, um gato, um cavalo ou outro animal, a escultura desse animal na pose que escolher. As descrições longas já não são cortadas.",
+        "ja": "新機能：「あなたのペットを鋼で」— 犬・猫・馬などの写真 1〜4 枚から、選んだポーズでその動物の彫刻を作ります。長い説明が途中で切れなくなりました。"
+      }
+    },
     {
       "date": "2026-11-27T16:51:41Z",
       "version": "1.0.11",
@@ -196,22 +209,22 @@
     }
   ],
   "ui": {
-    "version": "1.0.11",
+    "version": "1.0.12",
     "files": [
       {
         "path": "AutoSculptStudio.html",
         "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/ui/AutoSculptStudio.html",
-        "sha256": "ea8914b7647146c9f833a6c4fa9675a6428e7ce1c91c9367efddfe9bc1b5eacd"
+        "sha256": "bb35ba9740effbf908b3b3ab1175d9b57867c99779c8f0f16fb0f42a5744bbe4"
       }
     ]
   },
   "app": {
-    "version": "1.0.6",
+    "version": "1.0.7",
     "files": [
       {
         "path": "main.py",
         "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/app/main.py",
-        "sha256": "ae9bf83b11666e418f30b0fc85afb8b8ce094f6643ddd9610a8766099792791a"
+        "sha256": "0beaa9bd628e1268c596fc894764e7f0bb63eddcca2e15d353d1d50d44f7aa75"
       }
     ]
   },
@@ -236,22 +249,22 @@
     {
       "id": "gemini",
       "name": "Google Gemini",
-      "version": "1.1.4",
+      "version": "1.1.5",
       "files": [
         {
           "path": "engine.json",
           "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/engines/gemini/engine.json",
-          "sha256": "3b3a251afe55287fa1fabd34accc69f14924fc4b86a15d9eb24af212c6104d37"
+          "sha256": "88fba5698c24840937ce39d234d607aa2642d2a39140bff19159c770654fdae2"
         },
         {
           "path": "runner.py",
           "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/engines/gemini/runner.py",
-          "sha256": "e91c9d16540a62289f6190225b491cc1427c3ecb7b2bc49e65042d94ac0ce483"
+          "sha256": "8e98616bc1b38a917bbc1e79dc77518b9293215f3bf793ef6951c9398fedd81e"
         },
         {
           "path": "prompts.json",
           "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/engines/gemini/prompts.json",
-          "sha256": "2751b13ce2fc65ea38cbe94a981a7f73cfc88d95905872cc7ea8738e3000cf43"
+          "sha256": "1eb8d4b2ebefead26bd97050d0730740624d087021f8e40aba56d568aea42d2d"
         }
       ]
     },
