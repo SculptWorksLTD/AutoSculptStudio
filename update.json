@@ -1,17 +1,30 @@
 {
   "product": "AutoSculpt Studio",
-  "latest": "1.0.9",
-  "notes": "More detailed models: the local engine now works at high quality by default, the correction with the views no longer smooths the model when it is not needed, and you are warned when the drawing touches the edge of the picture.",
+  "latest": "1.0.10",
+  "notes": "New: ready descriptions of the subjects that sell, and the three views of the sheet cleaned before the 3D (ground, shadows, specks, same height).",
   "notes_i18n": {
-    "en": "More detailed models: the local engine now works at high quality by default, the correction with the views no longer smooths the model when it is not needed, and you are warned when the drawing touches the edge of the picture.",
-    "it": "Modelli più dettagliati: il motore locale lavora di serie in qualità alta, la correzione con le viste non smussa più il modello quando non serve e vieni avvisato quando il disegno tocca il bordo dell'immagine.",
-    "de": "Detailliertere Modelle: die lokale Engine arbeitet standardmäßig in hoher Qualität, die Korrektur mit den Ansichten glättet das Modell nicht mehr unnötig, und du wirst gewarnt, wenn die Zeichnung den Bildrand berührt.",
-    "fr": "Modèles plus détaillés : le moteur local travaille par défaut en haute qualité, la correction avec les vues ne lisse plus le modèle sans raison et vous êtes averti quand le dessin touche le bord de l'image.",
-    "es": "Modelos más detallados: el motor local trabaja por defecto en calidad alta, la corrección con las vistas ya no suaviza el modelo sin necesidad y se avisa cuando el dibujo toca el borde de la imagen.",
-    "pt": "Modelos mais detalhados: o motor local trabalha por padrão em alta qualidade, a correção com as vistas não suaviza mais o modelo sem necessidade e você é avisado quando o desenho toca a borda da imagem.",
-    "ja": "より細かいモデル：ローカルエンジンは標準で高品質になり、ビューによる補正は不要なときにモデルを滑らかにしなくなりました。絵が画像の端に触れているときは警告します。"
+    "en": "New: ready descriptions of the subjects that sell, and the three views of the sheet cleaned before the 3D (ground, shadows, specks, same height).",
+    "it": "Novità: descrizioni pronte dei soggetti che si vendono, e le tre viste della scheda pulite prima del 3D (fondo, ombre, puntini, stessa altezza).",
+    "de": "Neu: fertige Beschreibungen der Motive, die sich verkaufen, und die drei Ansichten des Blatts vor dem 3D bereinigt (Hintergrund, Schatten, Punkte, gleiche Höhe).",
+    "fr": "Nouveau : descriptions prêtes des sujets qui se vendent, et les trois vues de la planche nettoyées avant la 3D (fond, ombres, points, même hauteur).",
+    "es": "Novedades: descripciones listas de los temas que se venden y las tres vistas de la hoja limpias antes del 3D (fondo, sombras, puntos, misma altura).",
+    "pt": "Novidades: descrições prontas dos temas que vendem e as três vistas da folha limpas antes do 3D (fundo, sombras, pontos, mesma altura).",
+    "ja": "新機能：売れる題材の説明文、3D の前に 3 つのビューをきれいに（背景、影、点、高さをそろえる）。"
   },
   "history": [
+    {
+      "date": "2026-11-27T13:30:45Z",
+      "version": "1.0.10",
+      "notes": {
+        "en": "New: ready descriptions of the subjects that sell, and the three views of the sheet cleaned before the 3D (ground, shadows, specks, same height).",
+        "it": "Novità: descrizioni pronte dei soggetti che si vendono, e le tre viste della scheda pulite prima del 3D (fondo, ombre, puntini, stessa altezza).",
+        "de": "Neu: fertige Beschreibungen der Motive, die sich verkaufen, und die drei Ansichten des Blatts vor dem 3D bereinigt (Hintergrund, Schatten, Punkte, gleiche Höhe).",
+        "fr": "Nouveau : descriptions prêtes des sujets qui se vendent, et les trois vues de la planche nettoyées avant la 3D (fond, ombres, points, même hauteur).",
+        "es": "Novedades: descripciones listas de los temas que se venden y las tres vistas de la hoja limpias antes del 3D (fondo, sombras, puntos, misma altura).",
+        "pt": "Novidades: descrições prontas dos temas que vendem e as três vistas da folha limpas antes do 3D (fundo, sombras, pontos, mesma altura).",
+        "ja": "新機能：売れる題材の説明文、3D の前に 3 つのビューをきれいに（背景、影、点、高さをそろえる）。"
+      }
+    },
     {
       "date": "2026-11-27T12:28:54Z",
       "version": "1.0.9",
@@ -170,12 +183,12 @@
     }
   ],
   "ui": {
-    "version": "1.0.9",
+    "version": "1.0.10",
     "files": [
       {
         "path": "AutoSculptStudio.html",
         "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/ui/AutoSculptStudio.html",
-        "sha256": "ff8fa21d91ac6ab3dd16d14f557adcce03eb4d8fa1ef95ec866c9401418dec71"
+        "sha256": "3b39333d69dfca1c352443efec87d2f5b2e7c85c8434a1c45f6b6a69c8f05e6f"
       }
     ]
   },
