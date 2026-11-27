@@ -1,17 +1,30 @@
 {
   "product": "AutoSculpt Studio",
-  "latest": "1.0.10",
-  "notes": "New: ready descriptions of the subjects that sell, and the three views of the sheet cleaned before the 3D (ground, shadows, specks, same height).",
+  "latest": "1.0.11",
+  "notes": "New: outlines of the pictures laid over the model (where it is too thick or too thin), three variants of a description to choose from, the credit left on Meshy and Tripo before ordering, «Clean up» (stand it up, remove the base, close the holes), and night jobs: a queue of subjects that are ready in the morning.",
   "notes_i18n": {
-    "en": "New: ready descriptions of the subjects that sell, and the three views of the sheet cleaned before the 3D (ground, shadows, specks, same height).",
-    "it": "Novità: descrizioni pronte dei soggetti che si vendono, e le tre viste della scheda pulite prima del 3D (fondo, ombre, puntini, stessa altezza).",
-    "de": "Neu: fertige Beschreibungen der Motive, die sich verkaufen, und die drei Ansichten des Blatts vor dem 3D bereinigt (Hintergrund, Schatten, Punkte, gleiche Höhe).",
-    "fr": "Nouveau : descriptions prêtes des sujets qui se vendent, et les trois vues de la planche nettoyées avant la 3D (fond, ombres, points, même hauteur).",
-    "es": "Novedades: descripciones listas de los temas que se venden y las tres vistas de la hoja limpias antes del 3D (fondo, sombras, puntos, misma altura).",
-    "pt": "Novidades: descrições prontas dos temas que vendem e as três vistas da folha limpas antes do 3D (fundo, sombras, pontos, mesma altura).",
-    "ja": "新機能：売れる題材の説明文、3D の前に 3 つのビューをきれいに（背景、影、点、高さをそろえる）。"
+    "en": "New: outlines of the pictures laid over the model (where it is too thick or too thin), three variants of a description to choose from, the credit left on Meshy and Tripo before ordering, «Clean up» (stand it up, remove the base, close the holes), and night jobs: a queue of subjects that are ready in the morning.",
+    "it": "Novità: sagome delle immagini sovrapposte al modello (dove è troppo spesso o troppo sottile), tre varianti di una descrizione tra cui scegliere, il credito residuo di Meshy e Tripo prima di ordinare, «Pulisci» (raddrizza, togli la base, chiudi i buchi) e i lavori di notte: una coda di soggetti pronti al mattino.",
+    "de": "Neu: Umrisse der Bilder über dem Modell (wo es zu dick oder zu dünn ist), drei Varianten einer Beschreibung zur Auswahl, das Restguthaben bei Meshy und Tripo vor der Bestellung, «Bereinigen» (aufrichten, Sockel entfernen, Löcher schließen) und Nachtaufträge: eine Warteschlange von Motiven, am Morgen fertig.",
+    "fr": "Nouveautés : contours des images posés sur le modèle (là où il est trop épais ou trop mince), trois variantes d'une description au choix, le crédit restant chez Meshy et Tripo avant de commander, « Nettoyer » (redresser, retirer le socle, fermer les trous) et les travaux de nuit : une file de sujets prêts le matin.",
+    "es": "Novedades: siluetas de las imágenes sobre el modelo (donde es demasiado grueso o fino), tres variantes de una descripción para elegir, el crédito restante de Meshy y Tripo antes de pedir, «Limpiar» (enderezar, quitar la base, cerrar agujeros) y los trabajos nocturnos: una cola de temas listos por la mañana.",
+    "pt": "Novidades: silhuetas das imagens sobre o modelo (onde está grosso ou fino demais), três variantes de uma descrição à escolha, o crédito restante na Meshy e na Tripo antes de encomendar, «Limpar» (endireitar, remover a base, fechar buracos) e os trabalhos noturnos: uma fila de temas prontos de manhã.",
+    "ja": "新機能：モデルに重ねた画像の輪郭（太すぎ・細すぎの箇所）、説明から3つのバリエーションを選択、注文前にMeshyとTripoの残りクレジットを表示、「クリーンアップ」（立たせる・台座除去・穴埋め）、夜間ジョブ：朝には完成する題材のキュー。"
   },
   "history": [
+    {
+      "date": "2026-11-27T16:51:41Z",
+      "version": "1.0.11",
+      "notes": {
+        "en": "New: outlines of the pictures laid over the model (where it is too thick or too thin), three variants of a description to choose from, the credit left on Meshy and Tripo before ordering, «Clean up» (stand it up, remove the base, close the holes), and night jobs: a queue of subjects that are ready in the morning.",
+        "it": "Novità: sagome delle immagini sovrapposte al modello (dove è troppo spesso o troppo sottile), tre varianti di una descrizione tra cui scegliere, il credito residuo di Meshy e Tripo prima di ordinare, «Pulisci» (raddrizza, togli la base, chiudi i buchi) e i lavori di notte: una coda di soggetti pronti al mattino.",
+        "de": "Neu: Umrisse der Bilder über dem Modell (wo es zu dick oder zu dünn ist), drei Varianten einer Beschreibung zur Auswahl, das Restguthaben bei Meshy und Tripo vor der Bestellung, «Bereinigen» (aufrichten, Sockel entfernen, Löcher schließen) und Nachtaufträge: eine Warteschlange von Motiven, am Morgen fertig.",
+        "fr": "Nouveautés : contours des images posés sur le modèle (là où il est trop épais ou trop mince), trois variantes d'une description au choix, le crédit restant chez Meshy et Tripo avant de commander, « Nettoyer » (redresser, retirer le socle, fermer les trous) et les travaux de nuit : une file de sujets prêts le matin.",
+        "es": "Novedades: siluetas de las imágenes sobre el modelo (donde es demasiado grueso o fino), tres variantes de una descripción para elegir, el crédito restante de Meshy y Tripo antes de pedir, «Limpiar» (enderezar, quitar la base, cerrar agujeros) y los trabajos nocturnos: una cola de temas listos por la mañana.",
+        "pt": "Novidades: silhuetas das imagens sobre o modelo (onde está grosso ou fino demais), três variantes de uma descrição à escolha, o crédito restante na Meshy e na Tripo antes de encomendar, «Limpar» (endireitar, remover a base, fechar buracos) e os trabalhos noturnos: uma fila de temas prontos de manhã.",
+        "ja": "新機能：モデルに重ねた画像の輪郭（太すぎ・細すぎの箇所）、説明から3つのバリエーションを選択、注文前にMeshyとTripoの残りクレジットを表示、「クリーンアップ」（立たせる・台座除去・穴埋め）、夜間ジョブ：朝には完成する題材のキュー。"
+      }
+    },
     {
       "date": "2026-11-27T13:30:45Z",
       "version": "1.0.10",
@@ -183,22 +196,22 @@
     }
   ],
   "ui": {
-    "version": "1.0.10",
+    "version": "1.0.11",
     "files": [
       {
         "path": "AutoSculptStudio.html",
         "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/ui/AutoSculptStudio.html",
-        "sha256": "3b39333d69dfca1c352443efec87d2f5b2e7c85c8434a1c45f6b6a69c8f05e6f"
+        "sha256": "ea8914b7647146c9f833a6c4fa9675a6428e7ce1c91c9367efddfe9bc1b5eacd"
       }
     ]
   },
   "app": {
-    "version": "1.0.5",
+    "version": "1.0.6",
     "files": [
       {
         "path": "main.py",
         "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/app/main.py",
-        "sha256": "aa53edac744c1eb114d17b9ee2f4d3139d5e7de0a08207d07c530c2327565bfa"
+        "sha256": "ae9bf83b11666e418f30b0fc85afb8b8ce094f6643ddd9610a8766099792791a"
       }
     ]
   },

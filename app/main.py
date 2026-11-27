@@ -352,6 +352,31 @@ def save_key(eid, key):
         os.chmod(KEYS_FILE, 384)
     except OSError:
         pass
+BALANCE_URLS = {'meshy': 'https://api.meshy.ai/openapi/v1/balance', 'tripo': 'https://openapi.tripo3d.ai/v3/account/balance'}
+
+def service_balance(eid):
+    key = load_keys().get(eid)
+    if eid not in BALANCE_URLS:
+        return {'error': 'no balance for this service'}
+    if not key:
+        return {'error': 'no key'}
+    url = BALANCE_URLS[eid]
+    test = os.environ.get('AUTOSCULPT_TEST_API')
+    if test:
+        url = test.rstrip('/') + '/' + eid + '-balance'
+    req = urllib.request.Request(url, headers={'Authorization': 'Bearer ' + key, 'User-Agent': 'AutoSculptStudio/' + VERSION})
+    try:
+        with urlopen(req, 8) as r:
+            d = json.loads(r.read().decode('utf-8', 'replace') or '{}')
+    except urllib.error.HTTPError as e:
+        return {'error': 'rejected' if e.code in (401, 403) else 'error ' + str(e.code)}
+    except Exception as e:
+        return {'error': type(e).__name__}
+    if eid == 'meshy' and isinstance(d.get('balance'), (int, float)):
+        return {'credits': d['balance']}
+    if eid == 'tripo' and isinstance(d.get('data'), dict) and isinstance(d['data'].get('balance'), (int, float)):
+        return {'credits': d['data']['balance'], 'held': d['data'].get('frozen') or 0}
+    return {'error': 'unexpected answer'}
 QUIT = {'dirty': False, 'allow': False, 'win': None}
 GALLERY_URL = os.environ.get('AUTOSCULPT_GALLERY_URL', 'https://pub-6a60f5de67aa452fa66fa8d7cc451b99.r2.dev/gallery/v1')
 _gallery_index = [None]
@@ -1359,6 +1384,9 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json({'installed': autosculpt_app() is not None})
             if path == '/api/info':
                 return self.send_json({'app': APP_NAME, 'version': VERSION, 'ui': ui_version(), 'product': product_version(), 'machine': platform.machine(), 'macos': platform.mac_ver()[0], 'os': sys.platform, 'support': str(SUPPORT), 'settings': load_settings(), 'ram_gb': total_ram_gb(), 'nvidia': IS_WIN and has_nvidia(), 'apple_chip': sys.platform == 'darwin' and platform.machine() == 'arm64', 'free_gb': round(shutil.disk_usage(SUPPORT).free / 2 ** 30), 'microphone': microphone_allowed()})
+            if path == '/api/balance':
+                q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+                return self.send_json(service_balance((q.get('engine') or [''])[0]))
             if path == '/api/engines':
                 allk = 'kind=all' in (urllib.parse.urlparse(self.path).query or '')
                 return self.send_json(sorted((engine_status(s) for s in engine_specs().values() if allk or s.get('kind', 'photo3d') == 'photo3d'), key=lambda e: (e['order'], e['name'])))
