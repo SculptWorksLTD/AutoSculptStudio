@@ -1,17 +1,30 @@
 {
   "product": "AutoSculpt Studio",
-  "latest": "1.0.7",
-  "notes": "The 3D engine on this computer now starts from the three-quarter view of the reference sheet, which shows front and side together: better depth. The model is then corrected with all three views and turned with its front towards you.",
+  "latest": "1.0.8",
+  "notes": "New viewer tools: turn a model a quarter at a time (it reaches AutoSculpt 3D as you see it), show its faces, see the pictures it was made from and make it again from them with any engine.",
   "notes_i18n": {
-    "en": "The 3D engine on this computer now starts from the three-quarter view of the reference sheet, which shows front and side together: better depth. The model is then corrected with all three views and turned with its front towards you.",
-    "it": "Il motore 3D su questo computer ora parte dalla vista di tre quarti della scheda, che mostra insieme fronte e fianco: profondità migliore. Poi il modello viene corretto con tutte e tre le viste e girato con il fronte verso di te.",
-    "de": "Die 3D-Engine auf diesem Computer startet jetzt von der Dreiviertelansicht des Blatts, die Vorder- und Seitenansicht zusammen zeigt: bessere Tiefe. Danach wird das Modell mit allen drei Ansichten korrigiert und mit der Vorderseite zu dir gedreht.",
-    "fr": "Le moteur 3D de cet ordinateur part maintenant de la vue de trois quarts de la planche, qui montre la face et le côté ensemble : meilleure profondeur. Le modèle est ensuite corrigé avec les trois vues et tourné face à toi.",
-    "es": "El motor 3D de este ordenador ahora parte de la vista de tres cuartos de la hoja, que muestra frente y lado a la vez: mejor profundidad. Luego el modelo se corrige con las tres vistas y se gira con el frente hacia ti.",
-    "pt": "O motor 3D deste computador agora parte da vista de três quartos da folha, que mostra frente e lado juntos: melhor profundidade. Depois o modelo é corrigido com as três vistas e girado com a frente para você.",
-    "ja": "このコンピューターの3Dエンジンは、正面と側面を同時に示すシートの斜め45度のビューから作成するようになりました。奥行きがより正確になります。その後3つのビューすべてでモデルを補正し、正面がこちらを向くように回転します。"
+    "en": "New viewer tools: turn a model a quarter at a time (it reaches AutoSculpt 3D as you see it), show its faces, see the pictures it was made from and make it again from them with any engine.",
+    "it": "Nuovi strumenti nel visore: gira il modello di un quarto alla volta (arriva in AutoSculpt 3D come lo vedi), mostra le facce, guarda le immagini da cui è nato e rifallo da quelle con qualsiasi motore.",
+    "de": "Neue Werkzeuge im Viewer: das Modell vierteldrehungsweise drehen (es kommt so in AutoSculpt 3D an, wie du es siehst), die Flächen zeigen, die Ausgangsbilder ansehen und daraus mit einer beliebigen Engine neu erstellen.",
+    "fr": "Nouveaux outils dans la visionneuse : tourner le modèle d'un quart à la fois (il arrive dans AutoSculpt 3D tel que tu le vois), afficher les faces, voir les images d'origine et le refaire à partir d'elles avec n'importe quel moteur.",
+    "es": "Nuevas herramientas en el visor: girar el modelo de un cuarto en cuarto (llega a AutoSculpt 3D como lo ves), mostrar las caras, ver las imágenes de origen y rehacerlo con cualquier motor.",
+    "pt": "Novas ferramentas no visualizador: girar o modelo um quarto de cada vez (chega ao AutoSculpt 3D como você vê), mostrar as faces, ver as imagens de origem e refazê-lo com qualquer motor.",
+    "ja": "ビューアーの新機能：モデルを90度ずつ回転（見たままの向きで AutoSculpt 3D に送られます）、面の表示、元の画像の確認、任意のエンジンでの作り直し。"
   },
   "history": [
+    {
+      "date": "2026-11-27T11:53:16Z",
+      "version": "1.0.8",
+      "notes": {
+        "en": "New viewer tools: turn a model a quarter at a time (it reaches AutoSculpt 3D as you see it), show its faces, see the pictures it was made from and make it again from them with any engine.",
+        "it": "Nuovi strumenti nel visore: gira il modello di un quarto alla volta (arriva in AutoSculpt 3D come lo vedi), mostra le facce, guarda le immagini da cui è nato e rifallo da quelle con qualsiasi motore.",
+        "de": "Neue Werkzeuge im Viewer: das Modell vierteldrehungsweise drehen (es kommt so in AutoSculpt 3D an, wie du es siehst), die Flächen zeigen, die Ausgangsbilder ansehen und daraus mit einer beliebigen Engine neu erstellen.",
+        "fr": "Nouveaux outils dans la visionneuse : tourner le modèle d'un quart à la fois (il arrive dans AutoSculpt 3D tel que tu le vois), afficher les faces, voir les images d'origine et le refaire à partir d'elles avec n'importe quel moteur.",
+        "es": "Nuevas herramientas en el visor: girar el modelo de un cuarto en cuarto (llega a AutoSculpt 3D como lo ves), mostrar las caras, ver las imágenes de origen y rehacerlo con cualquier motor.",
+        "pt": "Novas ferramentas no visualizador: girar o modelo um quarto de cada vez (chega ao AutoSculpt 3D como você vê), mostrar as faces, ver as imagens de origem e refazê-lo com qualquer motor.",
+        "ja": "ビューアーの新機能：モデルを90度ずつ回転（見たままの向きで AutoSculpt 3D に送られます）、面の表示、元の画像の確認、任意のエンジンでの作り直し。"
+      }
+    },
     {
       "date": "2026-11-27T06:44:01Z",
       "version": "1.0.7",
@@ -144,22 +157,22 @@
     }
   ],
   "ui": {
-    "version": "1.0.7",
+    "version": "1.0.8",
     "files": [
       {
         "path": "AutoSculptStudio.html",
         "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/ui/AutoSculptStudio.html",
-        "sha256": "252ac1e0abc96d661ffcdbc036d714cae62cbfd644afde5415db08693738a5e0"
+        "sha256": "189fba93878b1fc5d341a254f5a51c6b140ef48cc23dcc42d6c2fe8f22183770"
       }
     ]
   },
   "app": {
-    "version": "1.0.4",
+    "version": "1.0.5",
     "files": [
       {
         "path": "main.py",
         "url": "https://raw.githubusercontent.com/SculptWorksLTD/AutoSculptStudio/main/app/main.py",
-        "sha256": "537ae4d74eeb320ee63adc210c7577a13ef5159a3cb33612cb87109794482f9c"
+        "sha256": "aa53edac744c1eb114d17b9ee2f4d3139d5e7de0a08207d07c530c2327565bfa"
       }
     ]
   },

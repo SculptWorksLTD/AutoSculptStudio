@@ -1351,7 +1351,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_file(f) if f.is_file() else self.send_error(404)
             if path == '/api/models':
                 return self.send_json({'models': models_list()})
-            m = re.match('^/api/models/([0-9a-f-]{10,40})/(model\\.(?:glb|obj|stl|ply)|thumb\\.jpg)$', path)
+            m = re.match('^/api/models/([0-9a-f-]{10,40})/(model\\.(?:glb|obj|stl|ply)|thumb\\.jpg|pic[1-4]\\.(?:jpg|png|webp))$', path)
             if m:
                 f = MODELS_DIR / m.group(1) / m.group(2)
                 return self.send_file(f) if f.is_file() else self.send_error(404)
@@ -1567,7 +1567,10 @@ class Handler(BaseHTTPRequestHandler):
                     (d / 'thumb.jpg').write_bytes(base64.b64decode(b.get('b64') or ''))
                 else:
                     meta = json.loads((d / 'meta.json').read_text(encoding='utf-8'))
-                    meta['title'] = str(b.get('title') or '')[:120]
+                    if 'title' in b:
+                        meta['title'] = str(b.get('title') or '')[:120]
+                    if isinstance(b.get('rot'), list) and len(b['rot']) == 3:
+                        meta['rot'] = [int(v) % 4 for v in b['rot']]
                     (d / 'meta.json').write_text(json.dumps(meta, ensure_ascii=False), encoding='utf-8')
                 return self.send_json({'ok': True})
             if path == '/api/phone/enable':
@@ -2010,6 +2013,21 @@ def models_save(b):
         (d / ('model' + ext)).write_bytes(base64.b64decode(b.get('b64') or ''))
     meta = {k: b.get(k) for k in ('title', 'prompt', 'engine', 'source', 'request', 'faces') if b.get(k) is not None}
     meta['created'] = time.strftime('%Y-%m-%d %H:%M')
+    pics = []
+    for i, uri in enumerate((b.get('pictures') or [])[:4]):
+        try:
+            head, _, data = str(uri).rpartition(',')
+            raw = base64.b64decode(data)
+            if not raw or len(raw) > 8 * 2 ** 20:
+                continue
+            ext = 'png' if 'png' in head else 'webp' if 'webp' in head else 'jpg'
+            (d / f'pic{i + 1}.{ext}').write_bytes(raw)
+            pics.append(f'pic{i + 1}.{ext}')
+        except Exception:
+            continue
+    if pics:
+        meta['pictures'] = pics
+        meta['sheet'] = bool(b.get('sheet'))
     (d / 'meta.json').write_text(json.dumps(meta, ensure_ascii=False), encoding='utf-8')
     return mid
 
